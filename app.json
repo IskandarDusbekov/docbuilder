@@ -8,7 +8,7 @@
     "scheme": "docbuilder",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/images/icon.png"
     },
     "android": {
       "package": "uz.docbuilder.app",
@@ -28,7 +28,7 @@
         }
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F4F6FA",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -49,7 +49,7 @@
         {
           "backgroundColor": "#FFFFFF",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76,
+          "imageWidth": 160,
           "dark": {
             "backgroundColor": "#09090B"
           }
@@ -65,6 +65,12 @@
       "@config-plugins/react-native-blob-util",
       "@config-plugins/react-native-pdf",
       "expo-sharing",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Ilovani qulflash uchun"
+        }
+      ],
       [
         "expo-media-library",
         {

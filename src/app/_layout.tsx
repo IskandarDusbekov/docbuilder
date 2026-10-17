@@ -7,7 +7,8 @@ import { useEffect } from 'react';
 
 import { DB_NAME, migrate } from '@/db';
 import { startOcr } from '@/files';
-import { FontAssets, Fonts, useColors, useIsDark } from '@/theme';
+import { AppHeader } from '@/components/app-header';
+import { FontAssets, useColors, useIsDark } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -47,10 +48,7 @@ export default function RootLayout() {
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack
           screenOptions={{
-            headerStyle: { backgroundColor: colors.background },
-            headerTintColor: colors.text,
-            headerTitleStyle: { fontFamily: Fonts.semibold },
-            headerShadowVisible: false,
+            header: (props) => <AppHeader {...props} />,
             contentStyle: { backgroundColor: colors.background },
           }}>
           <Stack.Screen name="index" options={{ title: 'DocBuilder' }} />
@@ -62,6 +60,7 @@ export default function RootLayout() {
           <Stack.Screen name="merge" options={{ title: "PDF'larni birlashtirish" }} />
           <Stack.Screen name="edit/[id]" options={{ title: 'Sahifalarni tahrirlash' }} />
           <Stack.Screen name="sign/[id]" options={{ title: "Imzo qo'yish" }} />
+          <Stack.Screen name="about" options={{ title: 'Ilova haqida' }} />
         </Stack>
       </ThemeProvider>
     </SQLiteProvider>

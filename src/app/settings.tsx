@@ -1,5 +1,6 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { ChevronRight, Folder as FolderIcon, FolderPlus, HardDrive, type LucideIcon } from 'lucide-react-native';
+import { router } from 'expo-router';
+import { ChevronRight, Folder as FolderIcon, FolderPlus, HardDrive, Info, type LucideIcon } from 'lucide-react-native';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -24,7 +25,7 @@ const SCHEMES = [
   { value: 'dark', label: "Qorong'i" },
 ] as const;
 
-const soon = (stage: number) => () => Alert.alert('Tez orada', `Bu amal ${stage}-bosqichda qo'shiladi.`);
+const soon = () => Alert.alert('Tez orada', "Bu funksiya keyingi yangilanishda qo'shiladi.");
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -126,12 +127,16 @@ export default function SettingsScreen() {
         <AppText variant="small" color="textSecondary">
           {"Barcha hujjatlar bitta ZIP faylga yig'iladi. Uni Google Drive yoki Telegram'ga saqlang."}
         </AppText>
-        <Button label="Zaxira nusxa yaratish" onPress={soon(6)} />
-        <Button label="Zaxiradan tiklash" variant="secondary" onPress={soon(6)} />
+        <Button label="Zaxira nusxa yaratish" onPress={soon} />
+        <Button label="Zaxiradan tiklash" variant="secondary" onPress={soon} />
       </Section>
 
       <Section title="Xotira">
         <Row icon={HardDrive} label="Egallangan joy" value={used === null ? '…' : formatSize(used)} />
+      </Section>
+
+      <Section title="Ilova">
+        <Row icon={Info} label="Ilova haqida" onPress={() => router.push('/about')} />
       </Section>
 
       <PromptDialog
