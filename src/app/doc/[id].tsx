@@ -1,7 +1,7 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { FileWarning, FolderInput, Pencil, Share2, Trash2 } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { Ellipsis, FileWarning, FolderInput, Pencil, Share2, Trash2 } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import Pdf from 'react-native-pdf';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,8 +18,10 @@ import {
   type Document,
   type Folder,
 } from '@/db';
-import { appFile, deleteDocument, shareDocument } from '@/files';
+import { appFile, deleteDocument, shareDocument, sharePageAsImage } from '@/files';
 import { Spacing, useColors } from '@/theme';
+
+type MoreAction = 'edit' | 'sign' | 'image';
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -32,14 +34,33 @@ export default function DocumentScreen() {
   const [doc, setDoc] = useState<Document | null | undefined>(undefined);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [failed, setFailed] = useState(false);
-  const [dialog, setDialog] = useState<'rename' | 'move' | null>(null);
+  const [dialog, setDialog] = useState<'rename' | 'move' | 'more' | null>(null);
   const [sharing, setSharing] = useState(false);
+
+  const [currentPage, setCurrentPage] = useState(1);
 
   const reload = useCallback(() => getDocument(db, id).then(setDoc), [db, id]);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  // Tahrirlash ekranidan qaytganda fayl yangilangan bo'lishi mumkin.
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload])
+  );
+
+  const runMore = async (action: MoreAction) => {
+    setDialog(null);
+    if (!doc) return;
+    if (action === 'edit') router.push({ pathname: '/edit/[id]', params: { id: doc.id } });
+    else if (action === 'sign') router.push({ pathname: '/sign/[id]', params: { id: doc.id } });
+    else {
+      try {
+        await sharePageAsImage(doc, currentPage - 1);
+      } catch (e) {
+        Alert.alert("Rasm yaratilmadi", errorText(e));
+      }
+    }
+  };
 
   const onLoaded = (pages: number) => {
     // Import paytidagi taxminiy son noto'g'ri bo'lsa, ko'ruvchi bergan aniq son bilan almashtiramiz.
@@ -108,9 +129,12 @@ export default function DocumentScreen() {
           <ActivityIndicator color={colors.text} style={styles.fill} />
         ) : ready && pdf && !failed ? (
           <Pdf
+            // Fayl tahrirlanganda manzil o'zgarmaydi, shuning uchun ko'ruvchini qayta yaratamiz.
+            key={doc.updated_at}
             source={{ uri: pdf.uri }}
             style={styles.fill}
             onLoadComplete={onLoaded}
+            onPageChanged={(page) => setCurrentPage(page)}
             onError={() => setFailed(true)}
           />
         ) : (
@@ -135,7 +159,21 @@ export default function DocumentScreen() {
           onPress={openMove}
         />
         <IconButton icon={Trash2} label="O'chirish" color="danger" disabled={!doc} onPress={confirmDelete} />
+        <IconButton icon={Ellipsis} label="Ko'proq" disabled={!ready} onPress={() => setDialog('more')} />
       </View>
+
+      <ChoiceDialog<MoreAction | null>
+        visible={dialog === 'more'}
+        title="Amallar"
+        options={[
+          { value: 'edit', label: 'Sahifalarni tahrirlash' },
+          { value: 'sign', label: "Imzo qo'yish" },
+          { value: 'image', label: `${currentPage}-sahifani rasm qilib ulashish` },
+        ]}
+        selected={null}
+        onSelect={(a) => a && runMore(a)}
+        onClose={() => setDialog(null)}
+      />
 
       <PromptDialog
         visible={dialog === 'rename'}

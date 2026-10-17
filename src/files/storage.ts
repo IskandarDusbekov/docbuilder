@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import PdfThumbnail from 'react-native-pdf-thumbnail';
 
-import { insertDocument, markDocumentDeleted, type Document } from '@/db';
+import { insertDocument, markDocumentDeleted, updateDocumentFile, type Document } from '@/db';
 
 // Fayllar ilovaning shaxsiy papkasida: documents/ ichida PDF'lar, thumbs/ ichida kichik rasmlar.
 // Bazada nisbiy yo'l saqlanadi, shunda zaxiradan tiklanganda ham yo'llar buzilmaydi.
@@ -24,10 +24,6 @@ function ensureDir(name: string) {
   return dir;
 }
 
-function titleFromName(name: string) {
-  return name.replace(/\.pdf$/i, '').trim() || 'Hujjat';
-}
-
 // Taxminiy sanash: PDF ichidagi "/Type /Page" belgilarini sanaydi. Siqilgan obyektli PDF'larda 0 chiqishi mumkin,
 // unda to'g'ri son hujjat birinchi marta ochilganda ko'ruvchidan olinadi.
 async function countPdfPages(file: File) {
@@ -39,11 +35,11 @@ async function countPdfPages(file: File) {
   return counts.length ? Math.max(...counts) : 0;
 }
 
-async function createThumb(pdf: File, id: string) {
+async function createThumb(pdf: File, name: string) {
   try {
     const result = await PdfThumbnail.generate(pdf.uri, 0, { quality: 70, maxWidth: THUMB_WIDTH });
-    await new File(result.uri).move(new File(ensureDir(THUMBS_DIR), `${id}.jpg`));
-    return `${THUMBS_DIR}/${id}.jpg`;
+    await new File(result.uri).move(new File(ensureDir(THUMBS_DIR), `${name}.jpg`));
+    return `${THUMBS_DIR}/${name}.jpg`;
   } catch {
     // Kichik rasm bo'lmasa, kartochkada ikonka chiqadi.
     return null;
@@ -89,6 +85,36 @@ export async function addPdfDocument(db: SQLiteDatabase, input: NewDocument) {
   return id;
 }
 
+// Hujjat PDF'ini tahrirlangan nusxa bilan almashtiradi (id va nomi o'zgarmaydi).
+export async function replaceDocumentPdf(db: SQLiteDatabase, doc: Document, bytes: Uint8Array, pageCount: number) {
+  const tmp = new File(Paths.cache, `${doc.id}-edit.pdf`);
+  if (tmp.exists) tmp.delete();
+  tmp.write(bytes);
+
+  const pdf = appFile(doc.file_path);
+  if (pdf.exists) pdf.delete();
+  await tmp.move(pdf);
+
+  // Rasm keshi eski faylni ko'rsatib qolmasligi uchun kichik rasm yangi nom bilan yoziladi.
+  const thumbPath = await createThumb(pdf, `${doc.id}-${Date.now()}`);
+  if (doc.thumb_path && doc.thumb_path !== thumbPath) {
+    const old = appFile(doc.thumb_path);
+    if (old.exists) old.delete();
+  }
+  await updateDocumentFile(db, doc.id, { thumbPath, pageCount, fileSize: pdf.size });
+}
+
+// Yangi PDF baytlaridan alohida hujjat yaratadi (birlashtirish, ajratish, imzo).
+export async function addPdfBytes(
+  db: SQLiteDatabase,
+  bytes: Uint8Array,
+  input: { title: string; folderId?: string | null; pageCount: number }
+) {
+  const tmp = new File(Paths.cache, `${randomUUID()}.pdf`);
+  tmp.write(bytes);
+  return addPdfDocument(db, { source: tmp, transfer: 'move', ...input });
+}
+
 export async function deleteDocument(db: SQLiteDatabase, doc: Document) {
   await markDocumentDeleted(db, doc.id);
   for (const rel of [doc.file_path, doc.thumb_path]) {
@@ -107,12 +133,4 @@ export async function shareDocument(doc: Document) {
   const copy = new File(dir, `${safeName}.pdf`);
   await appFile(doc.file_path).copy(copy);
   await Sharing.shareAsync(copy.uri, { mimeType: 'application/pdf', dialogTitle: doc.title, UTI: 'com.adobe.pdf' });
-}
-
-export function importPdf(db: SQLiteDatabase, picked: { uri: string; name: string }) {
-  return addPdfDocument(db, {
-    source: new File(picked.uri),
-    transfer: 'copy',
-    title: titleFromName(picked.name),
-  });
 }

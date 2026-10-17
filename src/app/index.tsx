@@ -1,19 +1,31 @@
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { FileText, FileUp, ScanLine, Search, SearchX, Settings } from 'lucide-react-native';
+import { FileText, Plus, ScanLine, Search, SearchX, Settings } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
+import { ChoiceDialog } from '@/components/dialog';
 import { DocCard } from '@/components/doc-card';
 import { FolderChip } from '@/components/folder-chip';
 import { IconButton } from '@/components/icon-button';
 import { Placeholder } from '@/components/placeholder';
 import { listDocuments, listFolders, type Document, type Folder } from '@/db';
-import { appFile, formatDate, importPdf } from '@/files';
+import { appFile, formatDate, importFile, scanDraft } from '@/files';
 import { Fonts, Radius, Spacing, useColors } from '@/theme';
+
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+type AddAction = 'import' | 'gallery' | 'merge';
+
+const ADD_ACTIONS: { value: AddAction; label: string }[] = [
+  { value: 'import', label: "PDF yoki Word faylni qo'shish" },
+  { value: 'gallery', label: 'Galereyadagi rasmlardan PDF' },
+  { value: 'merge', label: "PDF'larni birlashtirish" },
+];
 
 export default function HomeScreen() {
   const db = useSQLiteContext();
@@ -24,6 +36,7 @@ export default function HomeScreen() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [importing, setImporting] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async () => {
     const [d, f] = await Promise.all([listDocuments(db, { search: query, folderId }), listFolders(db)]);
@@ -42,21 +55,49 @@ export default function HomeScreen() {
 
   const importFromPhone = async () => {
     const res = await DocumentPicker.getDocumentAsync({
-      type: 'application/pdf',
+      type: ['application/pdf', DOCX_MIME],
       multiple: true,
       copyToCacheDirectory: true,
     });
     if (res.canceled) return;
 
     setImporting(true);
-    try {
-      for (const asset of res.assets) await importPdf(db, { uri: asset.uri, name: asset.name });
-    } catch (e) {
-      Alert.alert("Import bo'lmadi", e instanceof Error ? e.message : String(e));
-    } finally {
-      setImporting(false);
-      load();
+    const failed: string[] = [];
+    let lastId: string | null = null;
+    for (const asset of res.assets) {
+      try {
+        lastId = await importFile(db, asset.uri, asset.name);
+      } catch (e) {
+        failed.push(`${asset.name}: ${e instanceof Error ? e.message : String(e)}`);
+      }
     }
+    setImporting(false);
+    load();
+    if (failed.length) Alert.alert("Ba'zi fayllar qo'shilmadi", failed.join('\n'));
+    // Bitta fayl tanlansa (ayniqsa Word), natijani darhol ko'rsatamiz.
+    else if (res.assets.length === 1 && lastId) router.push({ pathname: '/doc/[id]', params: { id: lastId } });
+  };
+
+  const pdfFromGallery = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      orderedSelection: true,
+      quality: 1,
+    });
+    if (res.canceled || res.assets.length === 0) return;
+    scanDraft.set(
+      res.assets.map((a, i) => ({ key: `${Date.now()}-${i}`, uri: a.uri, rotation: 0 })),
+      'original'
+    );
+    router.push({ pathname: '/scan', params: { source: 'gallery' } });
+  };
+
+  const runAction = (action: AddAction) => {
+    setMenuOpen(false);
+    if (action === 'import') importFromPhone();
+    else if (action === 'gallery') pdfFromGallery();
+    else router.push('/merge');
   };
 
   const searching = query.trim().length > 0 || folderId !== null;
@@ -70,7 +111,7 @@ export default function HomeScreen() {
               {importing ? (
                 <ActivityIndicator color={colors.text} style={styles.spinner} />
               ) : (
-                <IconButton icon={FileUp} accessibilityLabel="PDF import qilish" onPress={importFromPhone} />
+                <IconButton icon={Plus} accessibilityLabel="Qo'shish" onPress={() => setMenuOpen(true)} />
               )}
               <IconButton icon={Settings} accessibilityLabel="Sozlamalar" onPress={() => router.push('/settings')} />
             </View>
@@ -130,6 +171,15 @@ export default function HomeScreen() {
       <View style={[styles.bottom, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button label="Skanerlash" icon={ScanLine} size="lg" onPress={() => router.push('/scan')} />
       </View>
+
+      <ChoiceDialog<AddAction | null>
+        visible={menuOpen}
+        title="Qo'shish"
+        options={ADD_ACTIONS}
+        selected={null}
+        onSelect={(a) => a && runAction(a)}
+        onClose={() => setMenuOpen(false)}
+      />
     </View>
   );
 }

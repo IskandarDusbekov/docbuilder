@@ -30,6 +30,10 @@ const MIGRATIONS = [
   CREATE INDEX documents_folder ON documents (folder_id);
   CREATE INDEX documents_created ON documents (created_at);
   `,
+  // 2: telefonda tanilgan matn (OCR). NULL: hali tanilmagan, '': tanildi, lekin matn topilmadi.
+  `
+  ALTER TABLE documents ADD COLUMN ocr_text TEXT;
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase) {

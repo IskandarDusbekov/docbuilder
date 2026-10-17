@@ -13,6 +13,7 @@ export type Document = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  ocr_text?: string | null;
 };
 
 export type Folder = {
@@ -67,6 +68,22 @@ export async function setPageCount(db: SQLiteDatabase, id: string, pageCount: nu
   await db.runAsync(
     'UPDATE documents SET page_count = ?, updated_at = ? WHERE id = ?',
     pageCount,
+    new Date().toISOString(),
+    id
+  );
+}
+
+export async function updateDocumentFile(
+  db: SQLiteDatabase,
+  id: string,
+  file: { thumbPath: string | null; pageCount: number; fileSize: number }
+) {
+  // Matn qayta tanilishi uchun ocr_text tozalanadi.
+  await db.runAsync(
+    'UPDATE documents SET thumb_path = ?, page_count = ?, file_size = ?, ocr_text = NULL, updated_at = ? WHERE id = ?',
+    file.thumbPath,
+    file.pageCount,
+    file.fileSize,
     new Date().toISOString(),
     id
   );

@@ -60,6 +60,10 @@ export default function RootLayout() {
           <Stack.Screen name="save" options={{ title: 'Saqlash' }} />
           <Stack.Screen name="doc/[id]" options={{ title: 'Hujjat' }} />
           <Stack.Screen name="settings" options={{ title: 'Sozlamalar' }} />
+          <Stack.Screen name="open" options={{ title: 'Ochilmoqda' }} />
+          <Stack.Screen name="merge" options={{ title: "PDF'larni birlashtirish" }} />
+          <Stack.Screen name="edit/[id]" options={{ title: 'Sahifalarni tahrirlash' }} />
+          <Stack.Screen name="sign/[id]" options={{ title: "Imzo qo'yish" }} />
         </Stack>
       </ThemeProvider>
     </SQLiteProvider>

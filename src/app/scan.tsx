@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, ChevronLeft, ChevronRight, Plus, RotateCw, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -23,7 +23,10 @@ const FILTERS = [
 export default function ScanScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [pages, setPages] = useState<ScanPage[]>([]);
+  // Galereyadan kelinganda sahifalar qoralamada tayyor turadi va skaner avtomatik ochilmaydi.
+  const { source } = useLocalSearchParams<{ source?: string }>();
+  const fromGallery = source === 'gallery';
+  const [pages, setPages] = useState<ScanPage[]>(() => (fromGallery ? scanDraft.get().pages : []));
   const [selected, setSelected] = useState(0);
   const [filter, setFilter] = useState<ScanFilter>('original');
   const [scanning, setScanning] = useState(false);
@@ -55,7 +58,7 @@ export default function ScanScreen() {
 
   // Ekran ochilishi bilan skaner ishga tushadi; birinchi skandan voz kechilsa, orqaga qaytamiz.
   useEffect(() => {
-    if (started.current) return;
+    if (started.current || fromGallery) return;
     started.current = true;
     scan().then((ok) => {
       if (!ok) router.back();
