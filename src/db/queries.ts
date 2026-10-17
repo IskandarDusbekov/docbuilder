@@ -89,11 +89,13 @@ export async function setOcrText(db: SQLiteDatabase, id: string, text: string) {
 export async function updateDocumentFile(
   db: SQLiteDatabase,
   id: string,
-  file: { thumbPath: string | null; pageCount: number; fileSize: number }
+  file: { filePath: string; thumbPath: string | null; pageCount: number; fileSize: number }
 ) {
   // Matn qayta tanilishi uchun ocr_text tozalanadi.
   await db.runAsync(
-    'UPDATE documents SET thumb_path = ?, page_count = ?, file_size = ?, ocr_text = NULL, updated_at = ? WHERE id = ?',
+    `UPDATE documents SET file_path = ?, thumb_path = ?, page_count = ?, file_size = ?, ocr_text = NULL, updated_at = ?
+     WHERE id = ?`,
+    file.filePath,
     file.thumbPath,
     file.pageCount,
     file.fileSize,

@@ -56,7 +56,9 @@ async function pageToBase64(page: ScanPage) {
   return saved.base64 ?? '';
 }
 
-// Har rasm alohida A4 sahifa. Balandlik 1px kam: yaxlitlash tufayli bo'sh sahifa qo'shilib qolmasin.
+// Har rasm alohida A4 sahifa, markazda va sahifani to'liq egallab (nisbat saqlanadi).
+// O'lcham millimetrda: Android chop etishda CSS piksel PDF nuqtasiga teng emas, px'da rasm burchakka siqilib qoladi.
+// Balandlik biroz kam: yaxlitlash tufayli bo'sh sahifa qo'shilib qolmasin.
 function buildHtml(images: string[], filter: ScanFilter) {
   const pages = images
     .map((b64) => `<div class="page"><img src="data:image/jpeg;base64,${b64}" /></div>`)
@@ -64,10 +66,10 @@ function buildHtml(images: string[], filter: ScanFilter) {
   return `<!doctype html><html><head><meta charset="utf-8" /><style>
     @page { size: A4; margin: 0; }
     html, body { margin: 0; padding: 0; }
-    .page { width: ${A4.width}px; height: ${A4.height - 1}px; display: flex; align-items: center;
+    .page { width: 210mm; height: 296.5mm; display: flex; align-items: center;
             justify-content: center; overflow: hidden; page-break-after: always; }
     .page:last-child { page-break-after: auto; }
-    img { max-width: 100%; max-height: 100%; object-fit: contain; filter: ${FILTER_CSS[filter]}; }
+    img { width: 100%; height: 100%; object-fit: contain; filter: ${FILTER_CSS[filter]}; }
   </style></head><body>${pages}</body></html>`;
 }
 

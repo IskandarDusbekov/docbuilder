@@ -2,7 +2,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { FileText, Plus, ScanLine, Search, SearchX, Settings } from 'lucide-react-native';
+import { Combine, FileText, FileUp, Images, Plus, ScanLine, Search, SearchX, Settings } from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,10 +21,10 @@ const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingm
 
 type AddAction = 'import' | 'gallery' | 'merge';
 
-const ADD_ACTIONS: { value: AddAction; label: string }[] = [
-  { value: 'import', label: "PDF yoki Word faylni qo'shish" },
-  { value: 'gallery', label: 'Galereyadagi rasmlardan PDF' },
-  { value: 'merge', label: "PDF'larni birlashtirish" },
+const ADD_ACTIONS = [
+  { value: 'import' as const, label: "PDF yoki Word faylni qo'shish", icon: FileUp },
+  { value: 'gallery' as const, label: 'Galereyadagi rasmlardan PDF', icon: Images },
+  { value: 'merge' as const, label: "PDF'larni birlashtirish", icon: Combine },
 ];
 
 export default function HomeScreen() {
@@ -172,12 +172,11 @@ export default function HomeScreen() {
         <Button label="Skanerlash" icon={ScanLine} size="lg" onPress={() => router.push('/scan')} />
       </View>
 
-      <ChoiceDialog<AddAction | null>
+      <ChoiceDialog<AddAction>
         visible={menuOpen}
         title="Qo'shish"
         options={ADD_ACTIONS}
-        selected={null}
-        onSelect={(a) => a && runAction(a)}
+        onSelect={runAction}
         onClose={() => setMenuOpen(false)}
       />
     </View>

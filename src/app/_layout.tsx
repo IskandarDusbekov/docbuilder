@@ -7,17 +7,8 @@ import { useEffect } from 'react';
 
 import { DB_NAME, migrate } from '@/db';
 import { startOcr } from '@/files';
-import {
-  applySchemePreference,
-  FontAssets,
-  Fonts,
-  getSchemePreference,
-  useColors,
-  useIsDark,
-} from '@/theme';
+import { FontAssets, Fonts, useColors, useIsDark } from '@/theme';
 
-// Saqlangan rejimni birinchi kadrdan oldin qo'llaymiz, aks holda ekran bir lahza boshqa rangda chiqadi.
-applySchemePreference(getSchemePreference());
 SplashScreen.preventAutoHideAsync();
 
 // Bazani yangilab, hali matni tanilmagan hujjatlar uchun OCR navbatini fonda boshlaydi.

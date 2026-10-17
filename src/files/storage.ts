@@ -79,21 +79,21 @@ export async function addPdfDocument(db: SQLiteDatabase, input: NewDocument) {
 
 // Hujjat PDF'ini tahrirlangan nusxa bilan almashtiradi (id va nomi o'zgarmaydi).
 export async function replaceDocumentPdf(db: SQLiteDatabase, doc: Document, bytes: Uint8Array, pageCount: number) {
-  const tmp = new File(Paths.cache, `${doc.id}-edit.pdf`);
-  if (tmp.exists) tmp.delete();
-  tmp.write(bytes);
+  // Yangi nusxa yangi nom bilan yoziladi: eski faylni ochiq turgan ko'ruvchi yoki rasm keshi
+  // almashtirilgan faylga tushib qolmaydi. Eskisi baza yangilangandan keyin o'chiriladi.
+  const version = `${doc.id}-${Date.now()}`;
+  const filePath = `${DOCS_DIR}/${version}.pdf`;
+  const pdf = new File(ensureDir(DOCS_DIR), `${version}.pdf`);
+  pdf.write(bytes);
 
-  const pdf = appFile(doc.file_path);
-  if (pdf.exists) pdf.delete();
-  await tmp.move(pdf);
+  const thumbPath = await createThumb(pdf, version);
+  await updateDocumentFile(db, doc.id, { filePath, thumbPath, pageCount, fileSize: pdf.size });
 
-  // Rasm keshi eski faylni ko'rsatib qolmasligi uchun kichik rasm yangi nom bilan yoziladi.
-  const thumbPath = await createThumb(pdf, `${doc.id}-${Date.now()}`);
-  if (doc.thumb_path && doc.thumb_path !== thumbPath) {
-    const old = appFile(doc.thumb_path);
-    if (old.exists) old.delete();
+  for (const old of [doc.file_path, doc.thumb_path]) {
+    if (!old) continue;
+    const file = appFile(old);
+    if (file.exists) file.delete();
   }
-  await updateDocumentFile(db, doc.id, { thumbPath, pageCount, fileSize: pdf.size });
   kickOcr();
 }
 

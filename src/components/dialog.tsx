@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react-native';
+import { Check, ChevronRight, type LucideIcon } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
@@ -74,28 +74,39 @@ function PromptBody({ title, initialValue = '', placeholder, submitLabel = 'Saql
 type ChoiceProps<T> = {
   visible: boolean;
   title: string;
-  options: { value: T; label: string }[];
-  selected: T;
+  options: { value: T; label: string; icon?: LucideIcon }[];
+  // Berilsa, tanlangan variant belgilanadi; menyu sifatida ishlatilganda berilmaydi.
+  selected?: T;
   onSelect: (value: T) => void;
   onClose: () => void;
 };
 
 export function ChoiceDialog<T>({ visible, title, options, selected, onSelect, onClose }: ChoiceProps<T>) {
   const colors = useColors();
+  const isMenu = selected === undefined;
   return (
     <Dialog visible={visible} title={title} onClose={onClose}>
-      <ScrollView style={styles.list}>
-        {options.map((o) => (
-          <Pressable
-            key={String(o.value)}
-            onPress={() => onSelect(o.value)}
-            style={({ pressed }) => [styles.option, pressed && { backgroundColor: colors.surface }]}>
-            <AppText variant="bodyMedium" style={styles.flex}>
-              {o.label}
-            </AppText>
-            {o.value === selected && <Check size={20} color={colors.text} />}
-          </Pressable>
-        ))}
+      <ScrollView style={styles.list} contentContainerStyle={styles.options}>
+        {options.map((o) => {
+          const Icon = o.icon;
+          return (
+            <Pressable
+              key={String(o.value)}
+              accessibilityRole="button"
+              onPress={() => onSelect(o.value)}
+              style={({ pressed }) => [
+                styles.option,
+                { backgroundColor: pressed ? colors.surfacePressed : colors.surface },
+              ]}>
+              {Icon && <Icon size={20} color={colors.text} />}
+              <AppText variant="bodyMedium" style={styles.flex}>
+                {o.label}
+              </AppText>
+              {o.value === selected && <Check size={20} color={colors.primary} />}
+              {isMenu && <ChevronRight size={20} color={colors.textSecondary} />}
+            </Pressable>
+          );
+        })}
       </ScrollView>
       <Button label="Bekor qilish" variant="secondary" onPress={onClose} />
     </Dialog>
@@ -130,13 +141,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
   },
   list: {
-    maxHeight: 320,
+    maxHeight: 360,
+  },
+  options: {
+    gap: Spacing.sm,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
-    paddingHorizontal: Spacing.md,
+    gap: Spacing.md,
+    minHeight: 52,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
     borderRadius: Radius.md,
   },
   flex: {

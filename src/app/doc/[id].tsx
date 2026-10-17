@@ -1,6 +1,16 @@
-import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import { Ellipsis, FileWarning, FolderInput, Pencil, Share2, Trash2 } from 'lucide-react-native';
+import {
+  Ellipsis,
+  FilePen,
+  FileWarning,
+  FolderInput,
+  ImageDown,
+  Pencil,
+  Share2,
+  Signature,
+  Trash2,
+} from 'lucide-react-native';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import Pdf from 'react-native-pdf';
@@ -38,6 +48,11 @@ export default function DocumentScreen() {
   const [sharing, setSharing] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
+  // Ko'ruvchi faqat ekran ko'rinib turganda yashaydi: tahrirlash ekrani faylni almashtirganda
+  // orqada qolgan ko'ruvchi eski faylni o'qishga urinib qulamaydi.
+  const focused = useIsFocused();
+  // Yuklanish tugamasdan boshqa ekranga o'tilsa ham ko'ruvchi quladi, shuning uchun "Ko'proq" kutib turadi.
+  const [loaded, setLoaded] = useState(false);
 
   const reload = useCallback(() => getDocument(db, id).then(setDoc), [db, id]);
 
@@ -45,6 +60,8 @@ export default function DocumentScreen() {
   useFocusEffect(
     useCallback(() => {
       reload();
+      // Qaytganda ko'ruvchi qaytadan yuklanadi.
+      return () => setLoaded(false);
     }, [reload])
   );
 
@@ -63,6 +80,7 @@ export default function DocumentScreen() {
   };
 
   const onLoaded = (pages: number) => {
+    setLoaded(true);
     // Import paytidagi taxminiy son noto'g'ri bo'lsa, ko'ruvchi bergan aniq son bilan almashtiramiz.
     if (doc && pages > 0 && pages !== doc.page_count) setPageCount(db, doc.id, pages);
   };
@@ -127,10 +145,10 @@ export default function DocumentScreen() {
       <View style={[styles.viewer, { backgroundColor: colors.surface }]}>
         {doc === undefined ? (
           <ActivityIndicator color={colors.text} style={styles.fill} />
-        ) : ready && pdf && !failed ? (
+        ) : !focused ? null : ready && pdf && !failed ? (
           <Pdf
-            // Fayl tahrirlanganda manzil o'zgarmaydi, shuning uchun ko'ruvchini qayta yaratamiz.
-            key={doc.updated_at}
+            // Tahrirlangan PDF yangi fayl nomi bilan saqlanadi; ko'ruvchi shu nom o'zgarganda qayta yaratiladi.
+            key={doc.file_path}
             source={{ uri: pdf.uri }}
             style={styles.fill}
             onLoadComplete={onLoaded}
@@ -159,19 +177,18 @@ export default function DocumentScreen() {
           onPress={openMove}
         />
         <IconButton icon={Trash2} label="O'chirish" color="danger" disabled={!doc} onPress={confirmDelete} />
-        <IconButton icon={Ellipsis} label="Ko'proq" disabled={!ready} onPress={() => setDialog('more')} />
+        <IconButton icon={Ellipsis} label="Ko'proq" disabled={!ready || !loaded} onPress={() => setDialog('more')} />
       </View>
 
-      <ChoiceDialog<MoreAction | null>
+      <ChoiceDialog<MoreAction>
         visible={dialog === 'more'}
         title="Amallar"
         options={[
-          { value: 'edit', label: 'Sahifalarni tahrirlash' },
-          { value: 'sign', label: "Imzo qo'yish" },
-          { value: 'image', label: `${currentPage}-sahifani rasm qilib ulashish` },
+          { value: 'edit', label: 'Sahifalarni tahrirlash', icon: FilePen },
+          { value: 'sign', label: "Imzo qo'yish", icon: Signature },
+          { value: 'image', label: `${currentPage}-sahifani rasm qilib ulashish`, icon: ImageDown },
         ]}
-        selected={null}
-        onSelect={(a) => a && runMore(a)}
+        onSelect={runMore}
         onClose={() => setDialog(null)}
       />
 
