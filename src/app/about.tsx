@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { Image } from 'expo-image';
+import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import {
   Combine,
@@ -117,6 +118,7 @@ export default function AboutScreen() {
         </View>
       </View>
 
+      <Button label="Tanishtiruvni qayta ko'rish" variant="secondary" onPress={() => router.push('/welcome')} />
       <Button label={updateLabel} variant="secondary" disabled={state !== 'idle'} onPress={checkForUpdate} />
       <AppText variant="caption" color="textSecondary" style={styles.center}>
         Yangilanishlar ilova ochilganda ham avtomatik tekshiriladi.

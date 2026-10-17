@@ -11,12 +11,13 @@ type Props = {
   pageCount: number;
   thumbUri?: string | null;
   onPress?: () => void;
+  onLongPress?: () => void;
 };
 
-export function DocCard({ title, date, pageCount, thumbUri, onPress }: Props) {
+export function DocCard({ title, date, pageCount, thumbUri, onPress, onLongPress }: Props) {
   const colors = useColors();
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, { opacity: pressed ? 0.7 : 1 }]}>
+    <Pressable onPress={onPress} onLongPress={onLongPress} style={({ pressed }) => [styles.card, { opacity: pressed ? 0.7 : 1 }]}>
       <View style={[styles.thumb, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {thumbUri ? (
           <Image source={{ uri: thumbUri }} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top" />

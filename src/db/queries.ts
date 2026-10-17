@@ -24,7 +24,17 @@ export type Folder = {
   deleted_at: string | null;
 };
 
-export function listDocuments(db: SQLiteDatabase, opts: { search?: string; folderId?: string | null } = {}) {
+const ORDER_BY = {
+  new: "created_at DESC",
+  old: "created_at ASC",
+  name: "title COLLATE NOCASE ASC",
+  size: "file_size DESC",
+} as const;
+
+export function listDocuments(
+  db: SQLiteDatabase,
+  opts: { search?: string; folderId?: string | null; sort?: keyof typeof ORDER_BY } = {}
+) {
   const where = ['deleted_at IS NULL'];
   const params: string[] = [];
   const search = opts.search?.trim();
@@ -39,7 +49,7 @@ export function listDocuments(db: SQLiteDatabase, opts: { search?: string; folde
     params.push(opts.folderId);
   }
   return db.getAllAsync<Document>(
-    `SELECT * FROM documents WHERE ${where.join(' AND ')} ORDER BY created_at DESC`,
+    `SELECT * FROM documents WHERE ${where.join(' AND ')} ORDER BY ${ORDER_BY[opts.sort ?? 'new']}`,
     params
   );
 }

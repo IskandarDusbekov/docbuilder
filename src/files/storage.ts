@@ -85,7 +85,7 @@ export async function replaceDocumentPdf(db: SQLiteDatabase, doc: Document, byte
   const version = `${doc.id}-${Date.now()}`;
   const filePath = `${DOCS_DIR}/${version}.pdf`;
   const pdf = new File(ensureDir(DOCS_DIR), `${version}.pdf`);
-  pdf.write(bytes);
+  await pdf.write(bytes);
 
   const thumbPath = await createThumb(pdf, version);
   await updateDocumentFile(db, doc.id, { filePath, thumbPath, pageCount, fileSize: pdf.size });
@@ -105,7 +105,7 @@ export async function addPdfBytes(
   input: { title: string; folderId?: string | null; pageCount: number }
 ) {
   const tmp = new File(Paths.cache, `${randomUUID()}.pdf`);
-  tmp.write(bytes);
+  await tmp.write(bytes);
   return addPdfDocument(db, { source: tmp, transfer: 'move', ...input });
 }
 

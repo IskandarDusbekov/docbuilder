@@ -3,6 +3,7 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Album, Asset, requestPermissionsAsync } from 'expo-media-library';
 import * as Print from 'expo-print';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { PDFDocument } from 'pdf-lib';
 import PdfThumbnail from 'react-native-pdf-thumbnail';
 
 import { addPdfDocument } from './storage';
@@ -58,35 +59,40 @@ async function pageToBase64(page: ScanPage) {
   return saved.base64 ?? '';
 }
 
-// Har rasm alohida A4 sahifa, markazda va sahifani to'liq egallab (nisbat saqlanadi).
-// O'lcham millimetrda: Android chop etishda CSS piksel PDF nuqtasiga teng emas, px'da rasm burchakka siqilib qoladi.
-// Balandlik biroz kam: yaxlitlash tufayli bo'sh sahifa qo'shilib qolmasin.
-function buildHtml(images: string[], filter: ScanFilter) {
-  const pages = images
-    .map((b64) => `<div class="page"><img src="data:image/jpeg;base64,${b64}" /></div>`)
-    .join('');
+// Bitta rasm uchun bitta A4 sahifa. Rasm qotirilgan (position: fixed) maydonda turadi, shuning uchun
+// hujjat oqimida hech narsa yo'q va u keyingi sahifaga o'tib keta olmaydi. Atrofidagi chegara sahifalarni
+// aniq ajratadi va rasm chetlari kesilmaydi. O'lcham mm'da: Android chop etishda CSS px PDF nuqtasiga teng emas.
+function buildPageHtml(b64: string, filter: ScanFilter) {
   return `<!doctype html><html><head><meta charset="utf-8" /><style>
     @page { size: A4; margin: 0; }
     html, body { margin: 0; padding: 0; }
-    .page { width: 210mm; height: 296.5mm; display: flex; align-items: center;
-            justify-content: center; overflow: hidden; page-break-after: always; }
-    .page:last-child { page-break-after: auto; }
-    img { width: 100%; height: 100%; object-fit: contain; filter: ${FILTER_CSS[filter]}; }
-  </style></head><body>${pages}</body></html>`;
+    .page { position: fixed; top: 6mm; right: 6mm; bottom: 6mm; left: 6mm;
+            display: flex; align-items: center; justify-content: center; }
+    img { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain;
+          filter: ${FILTER_CSS[filter]}; }
+  </style></head><body><div class="page"><img src="data:image/jpeg;base64,${b64}" /></div></body></html>`;
 }
 
+// Har sahifa alohida chop etiladi va faqat birinchi sahifasi olinadi, keyin hammasi bitta PDF'ga yig'iladi.
+// Bitta HTML'da hamma sahifani chop etganda rasmlar bir-birining sahifasiga o'tib ketardi.
 async function printScanPdf(pages: ScanPage[], filter: ScanFilter) {
+  const out = await PDFDocument.create();
   // Ketma-ket: bir vaqtda ko'p katta rasm ochilsa, xotira yetmasligi mumkin.
-  const images: string[] = [];
-  for (const page of pages) images.push(await pageToBase64(page));
-
-  const { uri } = await Print.printToFileAsync({
-    html: buildHtml(images, filter),
-    width: A4.width,
-    height: A4.height,
-    margins: { left: 0, right: 0, top: 0, bottom: 0 },
-  });
-  return new File(uri);
+  for (const page of pages) {
+    const { uri } = await Print.printToFileAsync({
+      html: buildPageHtml(await pageToBase64(page), filter),
+      width: A4.width,
+      height: A4.height,
+    });
+    const single = new File(uri);
+    const src = await PDFDocument.load(await single.bytes());
+    const [copied] = await out.copyPages(src, [0]);
+    out.addPage(copied);
+    single.delete();
+  }
+  const file = new File(Paths.cache, `${Date.now()}-scan.pdf`);
+  await file.write(await out.save());
+  return file;
 }
 
 export async function createScanDocument(

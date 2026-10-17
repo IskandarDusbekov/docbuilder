@@ -6,6 +6,7 @@ import {
   FileWarning,
   FolderInput,
   ImageDown,
+  Info,
   Pencil,
   Share2,
   Signature,
@@ -16,6 +17,7 @@ import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import Pdf from 'react-native-pdf';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppText } from '@/components/app-text';
 import { ChoiceDialog, PromptDialog } from '@/components/dialog';
 import { IconButton } from '@/components/icon-button';
 import { Placeholder } from '@/components/placeholder';
@@ -28,10 +30,10 @@ import {
   type Document,
   type Folder,
 } from '@/db';
-import { appFile, deleteDocument, shareDocument, sharePageAsImage } from '@/files';
-import { Spacing, useColors } from '@/theme';
+import { appFile, deleteDocument, formatDateTime, formatSize, shareDocument, sharePageAsImage } from '@/files';
+import { Radius, Spacing, useColors } from '@/theme';
 
-type MoreAction = 'edit' | 'sign' | 'image';
+type MoreAction = 'edit' | 'sign' | 'image' | 'info';
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -48,6 +50,7 @@ export default function DocumentScreen() {
   const [sharing, setSharing] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
   // Ko'ruvchi faqat ekran ko'rinib turganda yashaydi: tahrirlash ekrani faylni almashtirganda
   // orqada qolgan ko'ruvchi eski faylni o'qishga urinib qulamaydi.
   const focused = useIsFocused();
@@ -70,6 +73,7 @@ export default function DocumentScreen() {
     if (!doc) return;
     if (action === 'edit') router.push({ pathname: '/edit/[id]', params: { id: doc.id } });
     else if (action === 'sign') router.push({ pathname: '/sign/[id]', params: { id: doc.id } });
+    else if (action === 'info') showInfo(doc);
     else {
       try {
         await sharePageAsImage(doc, currentPage - 1);
@@ -79,8 +83,25 @@ export default function DocumentScreen() {
     }
   };
 
+  const showInfo = async (d: Document) => {
+    const folder = d.folder_id ? (await listFolders(db)).find((f) => f.id === d.folder_id)?.name : null;
+    Alert.alert(
+      "Hujjat haqida",
+      [
+        `Nomi: ${d.title}`,
+        `Yaratilgan: ${formatDateTime(d.created_at)}`,
+        `O'zgartirilgan: ${formatDateTime(d.updated_at)}`,
+        `Sahifalar: ${totalPages || d.page_count || '—'}`,
+        `Hajmi: ${formatSize(d.file_size)}`,
+        `Papka: ${folder ?? 'Papkasiz'}`,
+        `Matn tanilgan: ${d.ocr_text ? 'ha' : d.ocr_text === '' ? "matn topilmadi" : 'hali yo\'q'}`,
+      ].join('\n')
+    );
+  };
+
   const onLoaded = (pages: number) => {
     setLoaded(true);
+    setTotalPages(pages);
     // Import paytidagi taxminiy son noto'g'ri bo'lsa, ko'ruvchi bergan aniq son bilan almashtiramiz.
     if (doc && pages > 0 && pages !== doc.page_count) setPageCount(db, doc.id, pages);
   };
@@ -160,6 +181,14 @@ export default function DocumentScreen() {
         )}
       </View>
 
+      {focused && loaded && totalPages > 1 && (
+        <View pointerEvents="none" style={[styles.pageBadge, { backgroundColor: colors.text, bottom: insets.bottom + 84 }]}>
+          <AppText variant="caption" style={{ color: colors.background }}>
+            {`${currentPage} / ${totalPages}`}
+          </AppText>
+        </View>
+      )}
+
       <View style={[styles.bar, { borderTopColor: colors.border, paddingBottom: insets.bottom + Spacing.sm }]}>
         <IconButton icon={Share2} label="Ulashish" disabled={!ready || sharing} onPress={share} />
         <IconButton
@@ -187,6 +216,7 @@ export default function DocumentScreen() {
           { value: 'edit', label: 'Sahifalarni tahrirlash', icon: FilePen },
           { value: 'sign', label: "Imzo qo'yish", icon: Signature },
           { value: 'image', label: `${currentPage}-sahifani rasm qilib ulashish`, icon: ImageDown },
+          { value: 'info', label: 'Hujjat haqida', icon: Info },
         ]}
         onSelect={runMore}
         onClose={() => setDialog(null)}
@@ -214,6 +244,15 @@ export default function DocumentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  // Ko'ruvchi ustida, pastki panel tepasida.
+  pageBadge: {
+    position: 'absolute',
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: Radius.full,
+    opacity: 0.85,
   },
   viewer: {
     flex: 1,

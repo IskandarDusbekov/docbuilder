@@ -61,6 +61,7 @@ export default function RootLayout() {
           <Stack.Screen name="edit/[id]" options={{ title: 'Sahifalarni tahrirlash' }} />
           <Stack.Screen name="sign/[id]" options={{ title: "Imzo qo'yish" }} />
           <Stack.Screen name="about" options={{ title: 'Ilova haqida' }} />
+          <Stack.Screen name="welcome" options={{ headerShown: false, animation: 'fade' }} />
         </Stack>
       </ThemeProvider>
     </SQLiteProvider>
