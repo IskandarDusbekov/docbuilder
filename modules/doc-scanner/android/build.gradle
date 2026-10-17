@@ -1,0 +1,26 @@
+apply plugin: 'com.android.library'
+
+group = 'uz.docbuilder.scanner'
+version = '1.0.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useDefaultAndroidSdkVersions()
+
+android {
+  namespace "uz.docbuilder.scanner"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+dependencies {
+  // Google ML Kit hujjat skaneri: chegarani topish, qirqish, tekislash. Model Play xizmatlari orqali keladi.
+  implementation 'com.google.android.gms:play-services-mlkit-document-scanner:16.0.0'
+}

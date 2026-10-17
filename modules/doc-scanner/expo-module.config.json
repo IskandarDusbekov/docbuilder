@@ -1,0 +1,7 @@
+{
+  "name": "doc-scanner",
+  "platforms": ["android"],
+  "android": {
+    "modules": ["uz.docbuilder.scanner.DocScannerModule"]
+  }
+}

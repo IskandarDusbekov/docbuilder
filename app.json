@@ -55,12 +55,6 @@
         }
       ],
       "expo-sqlite",
-      [
-        "react-native-document-scanner-plugin",
-        {
-          "cameraPermission": "Hujjatlarni skanerlash uchun kamera kerak"
-        }
-      ],
       "@config-plugins/react-native-blob-util",
       "@config-plugins/react-native-pdf",
       "expo-sharing",

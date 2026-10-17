@@ -61,7 +61,9 @@ async function recognize(filePath: string): Promise<string | null> {
       break;
     }
     try {
-      parts.push((await extractTextFromImage(image)).join('\n'));
+      // Kutubxona content:// dan boshqa manzilni oddiy fayl yo'li deb ochadi, shuning uchun file:// olib tashlanadi.
+      const path = decodeURIComponent(image.replace(/^file:\/\//, ''));
+      parts.push((await extractTextFromImage(path)).join('\n'));
     } catch {
       return null;
     } finally {

@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Camera, ChevronLeft, ChevronRight, Plus, RotateCw, Trash2 } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import DocumentScanner, { ScanDocumentResponseStatus } from 'react-native-document-scanner-plugin';
+import { scanDocument } from '@/modules/doc-scanner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/app-text';
@@ -36,8 +36,7 @@ export default function ScanScreen() {
   const scan = async () => {
     setScanning(true);
     try {
-      const res = await DocumentScanner.scanDocument({ croppedImageQuality: 90 });
-      const images = res.status === ScanDocumentResponseStatus.Success ? (res.scannedImages ?? []) : [];
+      const images = await scanDocument();
       if (images.length === 0) return false;
       // Android ba'zan sxemasiz yo'l qaytaradi; rasm va manipulator uchun file:// kerak.
       const added = images.map((path, i) => ({
