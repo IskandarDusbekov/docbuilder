@@ -7,15 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/app-text';
 import { Button } from '@/components/button';
 import { FolderChip } from '@/components/folder-chip';
+import { formatDate } from '@/files';
 import { Fonts, Radius, Spacing, useColors } from '@/theme';
 
 // Vaqtinchalik: papkalar 5-bosqichda bazadan olinadi.
 const FOLDERS = ['Papkasiz', 'Ish', 'Shaxsiy'];
 
 function defaultTitle() {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `Hujjat ${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+  return `Hujjat ${formatDate(new Date().toISOString())}`;
 }
 
 export default function SaveScreen() {

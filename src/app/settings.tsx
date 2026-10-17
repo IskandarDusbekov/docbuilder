@@ -1,10 +1,13 @@
+import { useSQLiteContext } from 'expo-sqlite';
 import { ChevronRight, Folder, HardDrive, type LucideIcon } from 'lucide-react-native';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/app-text';
 import { Button } from '@/components/button';
 import { Segmented } from '@/components/segmented';
+import { totalFileSize } from '@/db';
+import { formatSize } from '@/files';
 import {
   getSchemePreference,
   Radius,
@@ -55,7 +58,13 @@ function Row({ icon: Icon, label, value, onPress }: { icon: LucideIcon; label: s
 }
 
 export default function SettingsScreen() {
+  const db = useSQLiteContext();
   const [scheme, setScheme] = useState<SchemePreference>(getSchemePreference);
+  const [used, setUsed] = useState<number | null>(null);
+
+  useEffect(() => {
+    totalFileSize(db).then(setUsed);
+  }, [db]);
 
   const changeScheme = (value: SchemePreference) => {
     setScheme(value);
@@ -81,7 +90,7 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Xotira">
-        <Row icon={HardDrive} label="Egallangan joy" value="0 MB" />
+        <Row icon={HardDrive} label="Egallangan joy" value={used === null ? '…' : formatSize(used)} />
       </Section>
     </ScrollView>
   );

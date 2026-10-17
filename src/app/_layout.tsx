@@ -1,9 +1,11 @@
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
+import { DB_NAME, migrate } from '@/db';
 import {
   applySchemePreference,
   FontAssets,
@@ -42,22 +44,24 @@ export default function RootLayout() {
   };
 
   return (
-    <ThemeProvider value={navTheme}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.background },
-          headerTintColor: colors.text,
-          headerTitleStyle: { fontFamily: Fonts.semibold },
-          headerShadowVisible: false,
-          contentStyle: { backgroundColor: colors.background },
-        }}>
-        <Stack.Screen name="index" options={{ title: 'DocBuilder' }} />
-        <Stack.Screen name="scan" options={{ title: 'Skanerlash' }} />
-        <Stack.Screen name="save" options={{ title: 'Saqlash' }} />
-        <Stack.Screen name="doc/[id]" options={{ title: 'Hujjat' }} />
-        <Stack.Screen name="settings" options={{ title: 'Sozlamalar' }} />
-      </Stack>
-    </ThemeProvider>
+    <SQLiteProvider databaseName={DB_NAME} onInit={migrate}>
+      <ThemeProvider value={navTheme}>
+        <StatusBar style={isDark ? 'light' : 'dark'} />
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.text,
+            headerTitleStyle: { fontFamily: Fonts.semibold },
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}>
+          <Stack.Screen name="index" options={{ title: 'DocBuilder' }} />
+          <Stack.Screen name="scan" options={{ title: 'Skanerlash' }} />
+          <Stack.Screen name="save" options={{ title: 'Saqlash' }} />
+          <Stack.Screen name="doc/[id]" options={{ title: 'Hujjat' }} />
+          <Stack.Screen name="settings" options={{ title: 'Sozlamalar' }} />
+        </Stack>
+      </ThemeProvider>
+    </SQLiteProvider>
   );
 }

@@ -1,7 +1,9 @@
-import { router, Stack } from 'expo-router';
-import { FileText, ScanLine, Search, Settings } from 'lucide-react-native';
-import { useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { FileText, FileUp, ScanLine, Search, SearchX, Settings } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
@@ -9,26 +11,67 @@ import { DocCard } from '@/components/doc-card';
 import { FolderChip } from '@/components/folder-chip';
 import { IconButton } from '@/components/icon-button';
 import { Placeholder } from '@/components/placeholder';
+import { listDocuments, listFolders, type Document, type Folder } from '@/db';
+import { appFile, formatDate, importPdf } from '@/files';
 import { Fonts, Radius, Spacing, useColors } from '@/theme';
 
-// Vaqtinchalik namuna ma'lumot: 2-bosqichda SQLite'dan o'qiladi.
-const FOLDERS = ['Hammasi', 'Ish', 'Shaxsiy'];
-const DOCS = [{ id: 'namuna', title: 'Namuna hujjat', date: '17.10.2026', pageCount: 3 }];
-
 export default function HomeScreen() {
+  const db = useSQLiteContext();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
-  const [folder, setFolder] = useState(FOLDERS[0]);
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [docs, setDocs] = useState<Document[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [importing, setImporting] = useState(false);
 
-  const docs = DOCS.filter((d) => d.title.toLowerCase().includes(query.trim().toLowerCase()));
+  const load = useCallback(async () => {
+    const [d, f] = await Promise.all([listDocuments(db, { search: query, folderId }), listFolders(db)]);
+    setDocs(d);
+    setFolders(f);
+  }, [db, query, folderId]);
+
+  // Boshqa ekrandan qaytganda ham ro'yxat yangilanadi.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  const importFromPhone = async () => {
+    const res = await DocumentPicker.getDocumentAsync({
+      type: 'application/pdf',
+      multiple: true,
+      copyToCacheDirectory: true,
+    });
+    if (res.canceled) return;
+
+    setImporting(true);
+    try {
+      for (const asset of res.assets) await importPdf(db, { uri: asset.uri, name: asset.name });
+    } catch (e) {
+      Alert.alert("Import bo'lmadi", e instanceof Error ? e.message : String(e));
+    } finally {
+      setImporting(false);
+      load();
+    }
+  };
+
+  const searching = query.trim().length > 0 || folderId !== null;
 
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
           headerRight: () => (
-            <IconButton icon={Settings} accessibilityLabel="Sozlamalar" onPress={() => router.push('/settings')} />
+            <View style={styles.headerActions}>
+              {importing ? (
+                <ActivityIndicator color={colors.text} style={styles.spinner} />
+              ) : (
+                <IconButton icon={FileUp} accessibilityLabel="PDF import qilish" onPress={importFromPhone} />
+              )}
+              <IconButton icon={Settings} accessibilityLabel="Sozlamalar" onPress={() => router.push('/settings')} />
+            </View>
           ),
         }}
       />
@@ -45,8 +88,9 @@ export default function HomeScreen() {
           />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          {FOLDERS.map((f) => (
-            <FolderChip key={f} label={f} selected={f === folder} onPress={() => setFolder(f)} />
+          <FolderChip label="Hammasi" selected={folderId === null} onPress={() => setFolderId(null)} />
+          {folders.map((f) => (
+            <FolderChip key={f.id} label={f.name} selected={f.id === folderId} onPress={() => setFolderId(f.id)} />
           ))}
         </ScrollView>
       </View>
@@ -61,14 +105,23 @@ export default function HomeScreen() {
           <View style={styles.cell}>
             <DocCard
               title={item.title}
-              date={item.date}
-              pageCount={item.pageCount}
+              date={formatDate(item.created_at)}
+              pageCount={item.page_count}
+              thumbUri={item.thumb_path ? appFile(item.thumb_path).uri : null}
               onPress={() => router.push({ pathname: '/doc/[id]', params: { id: item.id } })}
             />
           </View>
         )}
         ListEmptyComponent={
-          <Placeholder icon={FileText} title="Hujjat topilmadi" hint="Yangi hujjat uchun pastdagi tugmani bosing" />
+          searching ? (
+            <Placeholder icon={SearchX} title="Hech narsa topilmadi" />
+          ) : (
+            <Placeholder
+              icon={FileText}
+              title="Hali hujjat yo'q"
+              hint="Pastdagi tugma bilan skanerlang yoki yuqoridagi tugma bilan PDF import qiling"
+            />
+          )
         }
       />
 
@@ -82,6 +135,14 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  spinner: {
+    width: 40,
+    height: 40,
   },
   top: {
     gap: Spacing.md,

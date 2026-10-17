@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { FileText } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -8,22 +9,26 @@ type Props = {
   title: string;
   date: string;
   pageCount: number;
+  thumbUri?: string | null;
   onPress?: () => void;
 };
 
-// Kichik rasm 2-bosqichda qo'shiladi; hozircha ikonka.
-export function DocCard({ title, date, pageCount, onPress }: Props) {
+export function DocCard({ title, date, pageCount, thumbUri, onPress }: Props) {
   const colors = useColors();
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.card, { opacity: pressed ? 0.7 : 1 }]}>
       <View style={[styles.thumb, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <FileText size={32} color={colors.textSecondary} />
+        {thumbUri ? (
+          <Image source={{ uri: thumbUri }} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top" />
+        ) : (
+          <FileText size={32} color={colors.textSecondary} />
+        )}
       </View>
       <AppText variant="bodyMedium" numberOfLines={1}>
         {title}
       </AppText>
       <AppText variant="caption" color="textSecondary">
-        {date} · {pageCount} bet
+        {pageCount > 0 ? `${date} · ${pageCount} bet` : date}
       </AppText>
     </Pressable>
   );
@@ -38,6 +43,7 @@ const styles = StyleSheet.create({
     aspectRatio: 3 / 4,
     borderRadius: Radius.md,
     borderWidth: 1,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.xs,
