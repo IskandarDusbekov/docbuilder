@@ -1,11 +1,12 @@
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { SQLiteProvider } from 'expo-sqlite';
+import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 
 import { DB_NAME, migrate } from '@/db';
+import { startOcr } from '@/files';
 import {
   applySchemePreference,
   FontAssets,
@@ -18,6 +19,12 @@ import {
 // Saqlangan rejimni birinchi kadrdan oldin qo'llaymiz, aks holda ekran bir lahza boshqa rangda chiqadi.
 applySchemePreference(getSchemePreference());
 SplashScreen.preventAutoHideAsync();
+
+// Bazani yangilab, hali matni tanilmagan hujjatlar uchun OCR navbatini fonda boshlaydi.
+async function initDatabase(db: SQLiteDatabase) {
+  await migrate(db);
+  startOcr(db);
+}
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(FontAssets);
@@ -44,7 +51,7 @@ export default function RootLayout() {
   };
 
   return (
-    <SQLiteProvider databaseName={DB_NAME} onInit={migrate}>
+    <SQLiteProvider databaseName={DB_NAME} onInit={initDatabase}>
       <ThemeProvider value={navTheme}>
         <StatusBar style={isDark ? 'light' : 'dark'} />
         <Stack

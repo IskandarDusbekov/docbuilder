@@ -6,23 +6,14 @@ import PdfThumbnail from 'react-native-pdf-thumbnail';
 
 import { insertDocument, markDocumentDeleted, updateDocumentFile, type Document } from '@/db';
 
-// Fayllar ilovaning shaxsiy papkasida: documents/ ichida PDF'lar, thumbs/ ichida kichik rasmlar.
-// Bazada nisbiy yo'l saqlanadi, shunda zaxiradan tiklanganda ham yo'llar buzilmaydi.
-const DOCS_DIR = 'documents';
-const THUMBS_DIR = 'thumbs';
+import { kickOcr } from './ocr';
+import { appFile, DOCS_DIR, ensureDir, THUMBS_DIR } from './paths';
+
+export { appFile } from './paths';
+
 const THUMB_WIDTH = 480;
 // Sahifalarni sanash uchun faylni xotiraga o'qiymiz; juda katta fayllarda buni qilmaymiz.
 const MAX_SCAN_BYTES = 30 * 1024 * 1024;
-
-export function appFile(relPath: string) {
-  return new File(Paths.document, relPath);
-}
-
-function ensureDir(name: string) {
-  const dir = new Directory(Paths.document, name);
-  if (!dir.exists) dir.create({ intermediates: true });
-  return dir;
-}
 
 // Taxminiy sanash: PDF ichidagi "/Type /Page" belgilarini sanaydi. Siqilgan obyektli PDF'larda 0 chiqishi mumkin,
 // unda to'g'ri son hujjat birinchi marta ochilganda ko'ruvchidan olinadi.
@@ -82,6 +73,7 @@ export async function addPdfDocument(db: SQLiteDatabase, input: NewDocument) {
     if (thumbPath) appFile(thumbPath).delete();
     throw e;
   }
+  kickOcr();
   return id;
 }
 
@@ -102,6 +94,7 @@ export async function replaceDocumentPdf(db: SQLiteDatabase, doc: Document, byte
     if (old.exists) old.delete();
   }
   await updateDocumentFile(db, doc.id, { thumbPath, pageCount, fileSize: pdf.size });
+  kickOcr();
 }
 
 // Yangi PDF baytlaridan alohida hujjat yaratadi (birlashtirish, ajratish, imzo).

@@ -29,8 +29,10 @@ export function listDocuments(db: SQLiteDatabase, opts: { search?: string; folde
   const params: string[] = [];
   const search = opts.search?.trim();
   if (search) {
-    where.push("title LIKE ? ESCAPE '\\'");
-    params.push(`%${search.replace(/[\\%_]/g, (c) => '\\' + c)}%`);
+    // Nom va hujjat ichidagi tanilgan matn bo'yicha.
+    where.push("(title LIKE ? ESCAPE '\\' OR ocr_text LIKE ? ESCAPE '\\')");
+    const pattern = `%${search.replace(/[\\%_]/g, (c) => '\\' + c)}%`;
+    params.push(pattern, pattern);
   }
   if (opts.folderId) {
     where.push('folder_id = ?');
@@ -71,6 +73,17 @@ export async function setPageCount(db: SQLiteDatabase, id: string, pageCount: nu
     new Date().toISOString(),
     id
   );
+}
+
+export function nextDocumentForOcr(db: SQLiteDatabase) {
+  return db.getFirstAsync<Document>(
+    'SELECT * FROM documents WHERE deleted_at IS NULL AND ocr_text IS NULL ORDER BY created_at DESC LIMIT 1'
+  );
+}
+
+// Matn sync qilinadigan ma'lumot emas (har qurilmada qayta tanilsa bo'ladi), shuning uchun updated_at o'zgarmaydi.
+export async function setOcrText(db: SQLiteDatabase, id: string, text: string) {
+  await db.runAsync('UPDATE documents SET ocr_text = ? WHERE id = ?', text, id);
 }
 
 export async function updateDocumentFile(
