@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/app-text';
 import { Button } from '@/components/button';
+import { clearLastError, getLastError } from '@/errors';
 import { formatDateTime } from '@/files';
 import { Radius, Spacing, useColors } from '@/theme';
 
@@ -48,6 +49,8 @@ export default function AboutScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const [state, setState] = useState<UpdateState>('idle');
+  // Oxirgi kutilmagan xato: muammo bo'lsa ishlab chiquvchiga yuborish uchun.
+  const [lastError, setLastError] = useState(getLastError);
 
   const version = Constants.expoConfig?.version ?? '1.0.0';
   // Updater orqali kelgan versiya bo'lsa uning sanasi, aks holda APK ichidagi asl versiya.
@@ -117,6 +120,27 @@ export default function AboutScreen() {
           ))}
         </View>
       </View>
+
+      {lastError && (
+        <View style={styles.section}>
+          <AppText variant="small" color="textSecondary">
+            Oxirgi xato (ishlab chiquvchiga yuborish uchun)
+          </AppText>
+          <View style={[styles.card, { backgroundColor: colors.surface }]}>
+            <AppText variant="caption" selectable numberOfLines={12}>
+              {lastError}
+            </AppText>
+          </View>
+          <Button
+            label="Xatoni tozalash"
+            variant="secondary"
+            onPress={() => {
+              clearLastError();
+              setLastError(null);
+            }}
+          />
+        </View>
+      )}
 
       <Button label="Tanishtiruvni qayta ko'rish" variant="secondary" onPress={() => router.push('/welcome')} />
       <Button label={updateLabel} variant="secondary" disabled={state !== 'idle'} onPress={checkForUpdate} />

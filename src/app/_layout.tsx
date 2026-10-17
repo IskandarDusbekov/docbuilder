@@ -1,16 +1,43 @@
 import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider, type ErrorBoundaryProps } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider, type SQLiteDatabase } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { DB_NAME, migrate } from '@/db';
 import { startOcr } from '@/files';
 import { AppHeader } from '@/components/app-header';
-import { FontAssets, useColors, useIsDark } from '@/theme';
+import { AppText } from '@/components/app-text';
+import { Button } from '@/components/button';
+import { describeError, installErrorRecorder, saveLastError } from '@/errors';
+import { FontAssets, Spacing, useColors, useIsDark } from '@/theme';
 
+installErrorRecorder();
 SplashScreen.preventAutoHideAsync();
+
+// Ekran chizishda xato bo'lsa, ilova yopilib ketmaydi: xato saqlanadi va qayta urinish taklif qilinadi.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const colors = useColors();
+  useEffect(() => {
+    saveLastError(error);
+  }, [error]);
+  return (
+    <View style={[styles.errorScreen, { backgroundColor: colors.background }]}>
+      <AppText variant="heading">Kutilmagan xato</AppText>
+      <AppText variant="small" color="textSecondary">
+        {"Hujjatlaringiz joyida. Qayta urinib ko'ring; xato takrorlansa, quyidagi matnni ishlab chiquvchiga yuboring."}
+      </AppText>
+      <ScrollView style={[styles.errorBox, { backgroundColor: colors.surface }]}>
+        <AppText variant="caption" selectable>
+          {describeError(error)}
+        </AppText>
+      </ScrollView>
+      <Button label="Qayta urinish" onPress={retry} />
+    </View>
+  );
+}
 
 // Bazani yangilab, hali matni tanilmagan hujjatlar uchun OCR navbatini fonda boshlaydi.
 async function initDatabase(db: SQLiteDatabase) {
@@ -67,3 +94,17 @@ export default function RootLayout() {
     </SQLiteProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  errorScreen: {
+    flex: 1,
+    gap: Spacing.lg,
+    padding: Spacing.xl,
+    paddingTop: 64,
+  },
+  errorBox: {
+    flex: 1,
+    padding: Spacing.md,
+    borderRadius: 12,
+  },
+});

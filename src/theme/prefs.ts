@@ -32,7 +32,10 @@ export function createPref<T extends string>(key: string, fallback: T, allowed: 
     };
   };
 
-  return { get, set, use: () => useSyncExternalStore(subscribe, get) };
+  // Hook nomi "use" bilan boshlanib katta harf bilan davom etishi shart: React Compiler hookni nomidan taniydi.
+  const useValue = () => useSyncExternalStore(subscribe, get);
+
+  return { get, set, useValue };
 }
 
 export type DocSort = 'new' | 'old' | 'name' | 'size';

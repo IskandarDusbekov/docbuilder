@@ -20,9 +20,9 @@ import {
 } from '@/theme';
 
 const SCHEMES = [
-  { value: 'system', label: 'Tizim' },
   { value: 'light', label: "Yorug'" },
   { value: 'dark', label: "Qorong'i" },
+  { value: 'system', label: 'Tizim' },
 ] as const;
 
 const soon = () => Alert.alert('Tez orada', "Bu funksiya keyingi yangilanishda qo'shiladi.");

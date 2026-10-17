@@ -20,8 +20,8 @@ import {
   Share2,
   Trash2,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
@@ -30,6 +30,7 @@ import { ChoiceDialog, PromptDialog } from '@/components/dialog';
 import { DocCard } from '@/components/doc-card';
 import { DocRow } from '@/components/doc-row';
 import { FolderChip } from '@/components/folder-chip';
+import { Onboarding } from '@/components/onboarding';
 import { IconButton } from '@/components/icon-button';
 import { Placeholder } from '@/components/placeholder';
 import { listDocuments, listFolders, moveDocument, renameDocument, type Document, type Folder } from '@/db';
@@ -74,8 +75,8 @@ export default function HomeScreen() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [importing, setImporting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const sort = docSortPref.use();
-  const view = docViewPref.use();
+  const sort = docSortPref.useValue();
+  const view = docViewPref.useValue();
   const [sortOpen, setSortOpen] = useState(false);
   // Uzoq bosilgan hujjat va u uchun ochilgan oyna.
   const [target, setTarget] = useState<Document | null>(null);
@@ -89,10 +90,8 @@ export default function HomeScreen() {
     if (folderId && !f.some((x) => x.id === folderId)) setFolderId(null);
   }, [db, query, folderId, sort]);
 
-  // Birinchi ochilishda qisqa tanishtiruv.
-  useEffect(() => {
-    if (onboardingPref.get() === 'pending') router.push('/welcome');
-  }, []);
+  // Birinchi ochilishda qisqa tanishtiruv: navigatsiyasiz, oddiy oyna sifatida.
+  const onboarding = onboardingPref.useValue();
 
   // Boshqa ekrandan qaytganda ham ro'yxat yangilanadi.
   useFocusEffect(
@@ -300,6 +299,9 @@ export default function HomeScreen() {
         <Button label="Skanerlash" icon={ScanLine} size="lg" onPress={() => router.push('/scan')} />
       </View>
 
+      <Modal visible={onboarding === 'pending'} animationType="fade" statusBarTranslucent onRequestClose={() => onboardingPref.set('done')}>
+        <Onboarding onDone={() => onboardingPref.set('done')} />
+      </Modal>
       <ChoiceDialog<AddAction>
         visible={menuOpen}
         title="Qo'shish"

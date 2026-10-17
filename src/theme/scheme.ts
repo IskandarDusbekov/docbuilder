@@ -11,9 +11,10 @@ const KEY = 'theme.scheme';
 function read(): SchemePreference {
   try {
     const value = Storage.getItemSync(KEY);
-    return value === 'light' || value === 'dark' ? value : 'system';
+    // Tanlanmagan bo'lsa yorug' rejim: ilova shu rejimga moslab chizilgan.
+    return value === 'system' || value === 'dark' ? value : 'light';
   } catch {
-    return 'system';
+    return 'light';
   }
 }
 
