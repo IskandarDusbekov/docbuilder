@@ -163,7 +163,7 @@ export default function DocumentScreen() {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: doc?.title ?? 'Hujjat' }} />
 
-      <View style={[styles.viewer, { backgroundColor: colors.surface }]}>
+      <View style={[styles.viewer, { backgroundColor: colors.canvas }]}>
         {doc === undefined ? (
           <ActivityIndicator color={colors.text} style={styles.fill} />
         ) : !focused ? null : ready && pdf && !failed ? (
@@ -172,6 +172,8 @@ export default function DocumentScreen() {
             key={doc.file_path}
             source={{ uri: pdf.uri }}
             style={styles.fill}
+            // Sahifalar orasidagi bo'shliq: ostidagi kulrang fon ko'rinib, sahifalar aniq ajraladi.
+            spacing={14}
             onLoadComplete={onLoaded}
             onPageChanged={(page) => setCurrentPage(page)}
             onError={() => setFailed(true)}

@@ -4,6 +4,8 @@ export const Colors = {
     background: '#FFFFFF',
     surface: '#F4F4F5',
     surfacePressed: '#E4E4E7',
+    // PDF sahifalari ostidagi "stol": oq sahifalar va ular orasidagi bo'shliq aniq ko'rinadi.
+    canvas: '#C9CBD1',
     border: '#E4E4E7',
     text: '#09090B',
     textSecondary: '#71717A',
@@ -16,6 +18,7 @@ export const Colors = {
     background: '#09090B',
     surface: '#18181B',
     surfacePressed: '#27272A',
+    canvas: '#000000',
     border: '#27272A',
     text: '#FAFAFA',
     textSecondary: '#A1A1AA',

@@ -33,7 +33,7 @@ import { FolderChip } from '@/components/folder-chip';
 import { Onboarding } from '@/components/onboarding';
 import { IconButton } from '@/components/icon-button';
 import { Placeholder } from '@/components/placeholder';
-import { listDocuments, listFolders, moveDocument, renameDocument, type Document, type Folder } from '@/db';
+import { countDocuments, listDocuments, listFolders, moveDocument, renameDocument, type Document, type Folder } from '@/db';
 import { appFile, deleteDocument, formatDate, formatSize, importFile, scanDraft, shareDocument } from '@/files';
 import { docSortPref, docViewPref, Fonts, onboardingPref, Radius, Spacing, useColors, type DocSort } from '@/theme';
 
@@ -59,6 +59,9 @@ const DOC_ACTIONS = [
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+// Hujjatlar shu miqdorda yuklanadi; ro'yxat oxiriga yaqinlashganda keyingisi qo'shiladi.
+const PAGE_SIZE = 60;
+
 const ADD_ACTIONS = [
   { value: 'import' as const, label: "PDF yoki Word faylni qo'shish", icon: FileUp },
   { value: 'gallery' as const, label: 'Galereyadagi rasmlardan PDF', icon: Images },
@@ -72,6 +75,8 @@ export default function HomeScreen() {
   const [query, setQuery] = useState('');
   const [folderId, setFolderId] = useState<string | null>(null);
   const [docs, setDocs] = useState<Document[]>([]);
+  const [total, setTotal] = useState(0);
+  const [limit, setLimit] = useState(PAGE_SIZE);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [importing, setImporting] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -83,12 +88,18 @@ export default function HomeScreen() {
   const [dialog, setDialog] = useState<'actions' | 'rename' | 'move' | null>(null);
 
   const load = useCallback(async () => {
-    const [d, f] = await Promise.all([listDocuments(db, { search: query, folderId, sort }), listFolders(db)]);
+    const filter = { search: query, folderId, sort };
+    const [d, n, f] = await Promise.all([
+      listDocuments(db, { ...filter, limit }),
+      countDocuments(db, filter),
+      listFolders(db),
+    ]);
     setDocs(d);
+    setTotal(n);
     setFolders(f);
     // Tanlangan papka sozlamalarda o'chirilgan bo'lsa, "Hammasi"ga qaytamiz.
     if (folderId && !f.some((x) => x.id === folderId)) setFolderId(null);
-  }, [db, query, folderId, sort]);
+  }, [db, query, folderId, sort, limit]);
 
   // Birinchi ochilishda qisqa tanishtiruv: navigatsiyasiz, oddiy oyna sifatida.
   const onboarding = onboardingPref.useValue();
@@ -145,6 +156,11 @@ export default function HomeScreen() {
     if (action === 'import') importFromPhone();
     else if (action === 'gallery') pdfFromGallery();
     else router.push('/merge');
+  };
+
+  const selectFolder = (id: string | null) => {
+    setFolderId(id);
+    setLimit(PAGE_SIZE);
   };
 
   const openActions = (doc: Document) => {
@@ -218,21 +234,24 @@ export default function HomeScreen() {
           <Search size={20} color={colors.textSecondary} />
           <TextInput
             value={query}
-            onChangeText={setQuery}
+            onChangeText={(t) => {
+              setQuery(t);
+              setLimit(PAGE_SIZE);
+            }}
             placeholder="Hujjatlarni qidirish"
             placeholderTextColor={colors.textSecondary}
             style={[styles.searchInput, { color: colors.text }]}
           />
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-          <FolderChip label="Hammasi" selected={folderId === null} onPress={() => setFolderId(null)} />
+          <FolderChip label="Hammasi" selected={folderId === null} onPress={() => selectFolder(null)} />
           {folders.map((f) => (
-            <FolderChip key={f.id} label={f.name} selected={f.id === folderId} onPress={() => setFolderId(f.id)} />
+            <FolderChip key={f.id} label={f.name} selected={f.id === folderId} onPress={() => selectFolder(f.id)} />
           ))}
         </ScrollView>
         <View style={styles.toolbar}>
           <AppText variant="caption" color="textSecondary" style={styles.fill}>
-            {`${docs.length} ta hujjat · uzoq bosing: amallar`}
+            {`${total} ta hujjat · uzoq bosing: amallar`}
           </AppText>
           <IconButton icon={ArrowUpDown} accessibilityLabel="Saralash" onPress={() => setSortOpen(true)} />
           <IconButton
@@ -249,6 +268,13 @@ export default function HomeScreen() {
         data={docs}
         keyExtractor={(d) => d.id}
         numColumns={isGrid ? 2 : 1}
+        onEndReached={() => {
+          if (docs.length < total) setLimit((l) => l + PAGE_SIZE);
+        }}
+        onEndReachedThreshold={0.6}
+        initialNumToRender={isGrid ? 8 : 14}
+        windowSize={7}
+        removeClippedSubviews
         columnWrapperStyle={isGrid ? styles.row : undefined}
         contentContainerStyle={[
           isGrid ? styles.grid : styles.list,
@@ -316,6 +342,7 @@ export default function HomeScreen() {
         selected={sort}
         onSelect={(s) => {
           docSortPref.set(s);
+          setLimit(PAGE_SIZE);
           setSortOpen(false);
         }}
         onClose={() => setSortOpen(false)}

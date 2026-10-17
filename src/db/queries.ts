@@ -31,10 +31,13 @@ const ORDER_BY = {
   size: "file_size DESC",
 } as const;
 
-export function listDocuments(
-  db: SQLiteDatabase,
-  opts: { search?: string; folderId?: string | null; sort?: keyof typeof ORDER_BY } = {}
-) {
+type ListOptions = { search?: string; folderId?: string | null; sort?: keyof typeof ORDER_BY; limit?: number };
+
+// Ro'yxat uchun ustunlar: tanilgan matn (ocr_text) katta bo'lishi mumkin va ro'yxatda kerak emas.
+const LIST_COLUMNS =
+  'id, title, folder_id, file_path, thumb_path, page_count, file_size, created_at, updated_at, deleted_at';
+
+function listFilter(opts: ListOptions) {
   const where = ['deleted_at IS NULL'];
   const params: string[] = [];
   const search = opts.search?.trim();
@@ -48,10 +51,22 @@ export function listDocuments(
     where.push('folder_id = ?');
     params.push(opts.folderId);
   }
+  return { sql: where.join(' AND '), params };
+}
+
+export function listDocuments(db: SQLiteDatabase, opts: ListOptions = {}) {
+  const { sql, params } = listFilter(opts);
+  const limit = opts.limit ? ` LIMIT ${Math.floor(opts.limit)}` : '';
   return db.getAllAsync<Document>(
-    `SELECT * FROM documents WHERE ${where.join(' AND ')} ORDER BY ${ORDER_BY[opts.sort ?? 'new']}`,
+    `SELECT ${LIST_COLUMNS} FROM documents WHERE ${sql} ORDER BY ${ORDER_BY[opts.sort ?? 'new']}${limit}`,
     params
   );
+}
+
+export async function countDocuments(db: SQLiteDatabase, opts: ListOptions = {}) {
+  const { sql, params } = listFilter(opts);
+  const row = await db.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM documents WHERE ${sql}`, params);
+  return row?.n ?? 0;
 }
 
 export function getDocument(db: SQLiteDatabase, id: string) {
