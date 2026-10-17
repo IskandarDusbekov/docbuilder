@@ -45,7 +45,7 @@ export default function SaveScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + Spacing.lg }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: insets.bottom + Spacing.lg }]}>
       <View style={styles.field}>
         <AppText variant="small" color="textSecondary">
           Nomi

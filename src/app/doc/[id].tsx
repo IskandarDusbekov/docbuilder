@@ -139,7 +139,7 @@ export default function DocumentScreen() {
   const ready = !!doc && !!pdf?.exists;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: doc?.title ?? 'Hujjat' }} />
 
       <View style={[styles.viewer, { backgroundColor: colors.surface }]}>

@@ -92,7 +92,7 @@ export default function ScanScreen() {
 
   if (pages.length === 0) {
     return (
-      <View style={[styles.container, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: insets.bottom + Spacing.lg }]}>
         {scanning ? (
           <ActivityIndicator color={colors.text} style={styles.fill} />
         ) : (
@@ -109,7 +109,7 @@ export default function ScanScreen() {
   const filterStyle = { filter: FILTER_CSS[filter] };
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + Spacing.lg }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: insets.bottom + Spacing.lg }]}>
       <View style={[styles.preview, { backgroundColor: colors.surface }]}>
         <View style={[styles.fill, filterStyle]}>
           <Image

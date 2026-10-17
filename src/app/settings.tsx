@@ -10,11 +10,11 @@ import { Segmented } from '@/components/segmented';
 import { createFolder, deleteFolder, listFolders, renameFolder, totalFileSize, type Folder } from '@/db';
 import { formatSize } from '@/files';
 import {
-  getSchemePreference,
   Radius,
   setSchemePreference,
   Spacing,
   useColors,
+  useSchemePreference,
   type SchemePreference,
 } from '@/theme';
 
@@ -60,7 +60,8 @@ function Row({ icon: Icon, label, value, onPress }: { icon: LucideIcon; label: s
 
 export default function SettingsScreen() {
   const db = useSQLiteContext();
-  const [scheme, setScheme] = useState<SchemePreference>(getSchemePreference);
+  const colors = useColors();
+  const scheme = useSchemePreference();
   const [used, setUsed] = useState<number | null>(null);
   const [folders, setFolders] = useState<Folder[]>([]);
   // null: oyna yopiq; folder yo'q bo'lsa yangi papka, bor bo'lsa nomini o'zgartirish.
@@ -73,10 +74,7 @@ export default function SettingsScreen() {
     loadFolders();
   }, [db, loadFolders]);
 
-  const changeScheme = (value: SchemePreference) => {
-    setScheme(value);
-    setSchemePreference(value);
-  };
+  const changeScheme = (value: SchemePreference) => setSchemePreference(value);
 
   const submitFolder = async (name: string) => {
     try {
@@ -112,7 +110,7 @@ export default function SettingsScreen() {
     ]);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container}>
       <Section title="Ko'rinish">
         <Segmented options={SCHEMES} value={scheme} onChange={changeScheme} />
       </Section>

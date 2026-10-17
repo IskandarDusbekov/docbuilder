@@ -46,7 +46,7 @@ export default function EditPagesScreen() {
   }, [db, id]);
 
   if (!doc || !pages) {
-    return <ActivityIndicator color={colors.text} style={styles.fill} />;
+    return <ActivityIndicator color={colors.text} style={[styles.fill, { backgroundColor: colors.background }]} />;
   }
 
   const toggle = (index: number) =>
@@ -97,7 +97,7 @@ export default function EditPagesScreen() {
   const position = single ? pages.findIndex((p) => p.index === selected[0]) : -1;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={pages}
         keyExtractor={(p) => String(p.index)}

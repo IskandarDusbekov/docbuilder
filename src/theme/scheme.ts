@@ -1,6 +1,6 @@
 import { Storage } from 'expo-sqlite/kv-store';
 import { useSyncExternalStore } from 'react';
-import { Appearance, useColorScheme } from 'react-native';
+import { useColorScheme } from 'react-native';
 
 import { Colors, type Palette } from './colors';
 
@@ -9,8 +9,12 @@ export type SchemePreference = 'system' | 'light' | 'dark';
 const KEY = 'theme.scheme';
 
 function read(): SchemePreference {
-  const value = Storage.getItemSync(KEY);
-  return value === 'light' || value === 'dark' ? value : 'system';
+  try {
+    const value = Storage.getItemSync(KEY);
+    return value === 'light' || value === 'dark' ? value : 'system';
+  } catch {
+    return 'system';
+  }
 }
 
 // Tanlov ilovaning o'zida saqlanadi va shu yerdan tarqatiladi. Android'ga rejimni majburlash
@@ -18,18 +22,19 @@ function read(): SchemePreference {
 let preference = read();
 const listeners = new Set<() => void>();
 
-// Oldingi versiyalar qo'ygan tizim darajasidagi majburlashni olib tashlaymiz, shunda
-// useColorScheme() telefonning haqiqiy rejimini qaytaradi.
-Appearance.setColorScheme('unspecified');
-
 export function getSchemePreference() {
   return preference;
 }
 
 export function setSchemePreference(pref: SchemePreference) {
   preference = pref;
-  Storage.setItemSync(KEY, pref);
+  // Avval ekranlar yangilanadi: xotiraga yozish xato bersa ham rejim almashadi.
   listeners.forEach((l) => l());
+  try {
+    Storage.setItemSync(KEY, pref);
+  } catch (e) {
+    console.warn("Rejim tanlovi saqlanmadi", e);
+  }
 }
 
 function subscribe(listener: () => void) {

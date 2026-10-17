@@ -101,7 +101,7 @@ export default function SignScreen() {
   };
 
   if (!doc || sizes.length === 0) {
-    return <ActivityIndicator color={colors.text} style={styles.fill} />;
+    return <ActivityIndicator color={colors.text} style={[styles.fill, { backgroundColor: colors.background }]} />;
   }
 
   const resize = (delta: number) => {
@@ -134,7 +134,7 @@ export default function SignScreen() {
 
   if (step === 'draw') {
     return (
-      <View style={[styles.container, { paddingBottom: insets.bottom + Spacing.lg }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: insets.bottom + Spacing.lg }]}>
         <SignaturePad key={padKey} color={INK} onChange={setSignature} />
         <View style={styles.actions}>
           <Button
@@ -153,7 +153,7 @@ export default function SignScreen() {
   }
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + Spacing.lg }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingBottom: insets.bottom + Spacing.lg }]}>
       {sizes.length > 1 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={styles.chipsBar}>
           {sizes.map((_, i) => (

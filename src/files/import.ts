@@ -18,6 +18,9 @@ function copyToIncoming(uri: string) {
 // PDF bo'lsa shundayligicha, Word (.docx) bo'lsa PDF'ga o'girib kutubxonaga qo'shadi.
 export async function importFile(db: SQLiteDatabase, uri: string, name?: string) {
   const source = copyToIncoming(uri);
+  // move() File obyektining uri'sini yangi joyga o'zgartiradi. Tozalash uchun alohida havola kerak,
+  // aks holda kutubxonaga ko'chirilgan PDF'ning o'zi o'chib ketadi.
+  const leftover = new File(source.uri);
   const title = titleFromFileName(name, `Hujjat ${formatDate(new Date().toISOString())}`);
   try {
     const kind = detectFileKind(source);
@@ -28,6 +31,6 @@ export async function importFile(db: SQLiteDatabase, uri: string, name?: string)
     }
     throw new Error('Faqat PDF va Word (.docx) fayllar ochiladi');
   } finally {
-    if (source.exists) source.delete();
+    if (leftover.exists) leftover.delete();
   }
 }

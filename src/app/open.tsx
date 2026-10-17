@@ -27,7 +27,7 @@ export default function OpenScreen() {
   }, [db, uri, name]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {error ? (
         <>
           <Placeholder icon={FileWarning} title="Faylni ochib bo'lmadi" hint={error} style={styles.fill} />
