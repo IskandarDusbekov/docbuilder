@@ -49,22 +49,32 @@ async function createThumb(pdf: File, id: string) {
   }
 }
 
-export async function importPdf(db: SQLiteDatabase, source: { uri: string; name: string }) {
+type NewDocument = {
+  // Vaqtinchalik PDF: import'da tanlangan fayl nusxa olinadi, skanerdan yaratilgani ko'chiriladi.
+  source: File;
+  transfer: 'copy' | 'move';
+  title: string;
+  folderId?: string | null;
+  // Berilmasa, fayldan taxminan sanaladi.
+  pageCount?: number;
+};
+
+export async function addPdfDocument(db: SQLiteDatabase, input: NewDocument) {
   const id = randomUUID();
   const now = new Date().toISOString();
   const pdf = new File(ensureDir(DOCS_DIR), `${id}.pdf`);
 
-  await new File(source.uri).copy(pdf);
+  await (input.transfer === 'move' ? input.source.move(pdf) : input.source.copy(pdf));
   const thumbPath = await createThumb(pdf, id);
 
   try {
     await insertDocument(db, {
       id,
-      title: titleFromName(source.name),
-      folder_id: null,
+      title: input.title,
+      folder_id: input.folderId ?? null,
       file_path: `${DOCS_DIR}/${id}.pdf`,
       thumb_path: thumbPath,
-      page_count: await countPdfPages(pdf),
+      page_count: input.pageCount ?? (await countPdfPages(pdf)),
       file_size: pdf.size,
       created_at: now,
       updated_at: now,
@@ -76,4 +86,12 @@ export async function importPdf(db: SQLiteDatabase, source: { uri: string; name:
     throw e;
   }
   return id;
+}
+
+export function importPdf(db: SQLiteDatabase, picked: { uri: string; name: string }) {
+  return addPdfDocument(db, {
+    source: new File(picked.uri),
+    transfer: 'copy',
+    title: titleFromName(picked.name),
+  });
 }
