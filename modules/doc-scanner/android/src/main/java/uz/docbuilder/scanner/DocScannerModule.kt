@@ -36,20 +36,26 @@ class DocScannerModule : Module() {
       if (pageLimit > 0) options.setPageLimit(pageLimit)
 
       pendingPromise = promise
-      GmsDocumentScanning.getClient(options.build())
-        .getStartScanIntent(activity)
-        .addOnSuccessListener { intentSender ->
-          try {
-            activity.startIntentSenderForResult(intentSender, SCAN_REQUEST_CODE, null, 0, 0, 0)
-          } catch (e: Exception) {
-            pendingPromise = null
-            promise.reject(CodedException("ERR_START", e.message ?: "Skaner ochilmadi", e))
+      // Har qanday xatoda "band" holati tozalanadi, aks holda keyingi urinish "allaqachon ochiq" deb rad etilardi.
+      try {
+        GmsDocumentScanning.getClient(options.build())
+          .getStartScanIntent(activity)
+          .addOnSuccessListener { intentSender ->
+            try {
+              activity.startIntentSenderForResult(intentSender, SCAN_REQUEST_CODE, null, 0, 0, 0)
+            } catch (e: Exception) {
+              pendingPromise = null
+              promise.reject(CodedException("ERR_START", e.message ?: "Skaner ochilmadi", e))
+            }
           }
-        }
-        .addOnFailureListener { e ->
-          pendingPromise = null
-          promise.reject(CodedException("ERR_UNAVAILABLE", e.message ?: "Skaner mavjud emas", e))
-        }
+          .addOnFailureListener { e ->
+            pendingPromise = null
+            promise.reject(CodedException("ERR_UNAVAILABLE", e.message ?: "Skaner mavjud emas", e))
+          }
+      } catch (e: Exception) {
+        pendingPromise = null
+        promise.reject(CodedException("ERR_START", e.message ?: "Skaner ochilmadi", e))
+      }
     }.runOnQueue(Queues.MAIN)
 
     OnActivityResult { _, (requestCode, resultCode, data) ->
