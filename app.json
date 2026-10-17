@@ -13,8 +13,6 @@
     "android": {
       "package": "uz.docbuilder.app",
       "blockedPermissions": [
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO"
       ],
       "intentFilters": [
@@ -67,6 +65,13 @@
       "@config-plugins/react-native-blob-util",
       "@config-plugins/react-native-pdf",
       "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Skanerlangan sahifalarni galereyaga saqlash uchun",
+          "granularPermissions": ["photo"]
+        }
+      ],
       [
         "expo-build-properties",
         {

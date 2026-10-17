@@ -1,7 +1,7 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
-import { formatDate } from './format';
+import { formatDateTime } from './format';
 import { addPdfDocument } from './storage';
 import { detectFileKind, titleFromFileName, wordToPdf } from './word';
 
@@ -21,7 +21,7 @@ export async function importFile(db: SQLiteDatabase, uri: string, name?: string)
   // move() File obyektining uri'sini yangi joyga o'zgartiradi. Tozalash uchun alohida havola kerak,
   // aks holda kutubxonaga ko'chirilgan PDF'ning o'zi o'chib ketadi.
   const leftover = new File(source.uri);
-  const title = titleFromFileName(name, `Hujjat ${formatDate(new Date().toISOString())}`);
+  const title = titleFromFileName(name, `Hujjat ${formatDateTime(new Date().toISOString())}`);
   try {
     const kind = detectFileKind(source);
     if (kind === 'pdf') return await addPdfDocument(db, { source, transfer: 'move', title });

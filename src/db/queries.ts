@@ -48,6 +48,23 @@ export function getDocument(db: SQLiteDatabase, id: string) {
   return db.getFirstAsync<Document>('SELECT * FROM documents WHERE id = ? AND deleted_at IS NULL', id);
 }
 
+// "Skan 17.10.2026 14:35" band bo'lsa "Skan 17.10.2026 14:35 (2)" va hokazo.
+export async function uniqueTitle(db: SQLiteDatabase, base: string) {
+  const taken = new Set(
+    (
+      await db.getAllAsync<{ title: string }>(
+        "SELECT title FROM documents WHERE deleted_at IS NULL AND (title = ? OR title LIKE ? ESCAPE '\\')",
+        base,
+        `${base.replace(/[\\%_]/g, (c) => '\\' + c)} (%)`
+      )
+    ).map((r) => r.title)
+  );
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base} (${n})`)) n++;
+  return `${base} (${n})`;
+}
+
 export async function insertDocument(db: SQLiteDatabase, doc: Document) {
   await db.runAsync(
     `INSERT INTO documents

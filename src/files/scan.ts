@@ -1,7 +1,9 @@
-import { File } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { Album, Asset, requestPermissionsAsync } from 'expo-media-library';
 import * as Print from 'expo-print';
 import type { SQLiteDatabase } from 'expo-sqlite';
+import PdfThumbnail from 'react-native-pdf-thumbnail';
 
 import { addPdfDocument } from './storage';
 
@@ -73,26 +75,82 @@ function buildHtml(images: string[], filter: ScanFilter) {
   </style></head><body>${pages}</body></html>`;
 }
 
-export async function createScanDocument(
-  db: SQLiteDatabase,
-  input: { title: string; folderId: string | null; pages: ScanPage[]; filter: ScanFilter }
-) {
+async function printScanPdf(pages: ScanPage[], filter: ScanFilter) {
   // Ketma-ket: bir vaqtda ko'p katta rasm ochilsa, xotira yetmasligi mumkin.
   const images: string[] = [];
-  for (const page of input.pages) images.push(await pageToBase64(page));
+  for (const page of pages) images.push(await pageToBase64(page));
 
   const { uri } = await Print.printToFileAsync({
-    html: buildHtml(images, input.filter),
+    html: buildHtml(images, filter),
     width: A4.width,
     height: A4.height,
     margins: { left: 0, right: 0, top: 0, bottom: 0 },
   });
+  return new File(uri);
+}
 
+export async function createScanDocument(
+  db: SQLiteDatabase,
+  input: { title: string; folderId: string | null; pages: ScanPage[]; filter: ScanFilter }
+) {
   return addPdfDocument(db, {
-    source: new File(uri),
+    source: await printScanPdf(input.pages, input.filter),
     transfer: 'move',
     title: input.title,
     folderId: input.folderId,
     pageCount: input.pages.length,
   });
+}
+
+const ALBUM = 'DocBuilder';
+// Galereya uchun asl sifatga yaqin, lekin juda katta bo'lmagan o'lcham (~300 dpi A4).
+const GALLERY_WIDTH = 2480;
+
+// Har sahifa uchun burish va filtr qo'llangan JPEG.
+async function renderScanImages(pages: ScanPage[], filter: ScanFilter): Promise<File[]> {
+  if (filter === 'original') {
+    const files: File[] = [];
+    for (const page of pages) {
+      const ctx = ImageManipulator.manipulate(page.uri);
+      if (page.rotation) ctx.rotate(page.rotation);
+      let image = await ctx.renderAsync();
+      if (image.width > GALLERY_WIDTH) {
+        image = await ImageManipulator.manipulate(image).resize({ width: GALLERY_WIDTH }).renderAsync();
+      }
+      files.push(new File((await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.9 })).uri));
+    }
+    return files;
+  }
+  // Filtr faqat CSS orqali beriladi (manipulatorda kulrang/kontrast yo'q), shuning uchun vaqtinchalik
+  // PDF yasab, sahifalarini rasmga aylantiramiz.
+  const pdf = await printScanPdf(pages, filter);
+  try {
+    const rendered = await PdfThumbnail.generateAllPages(pdf.uri, { quality: 90, maxWidth: GALLERY_WIDTH });
+    return rendered.map((r) => new File(r.uri));
+  } finally {
+    pdf.delete();
+  }
+}
+
+// Sahifalarni telefon galereyasidagi "DocBuilder" albomiga saqlaydi. Ilova kutubxonasiga qo'shilmaydi.
+export async function saveScanToGallery(input: { title: string; pages: ScanPage[]; filter: ScanFilter }) {
+  const permission = await requestPermissionsAsync(true);
+  if (!permission.granted) throw new Error('Galereyaga saqlash uchun ruxsat berilmadi');
+
+  const images = await renderScanImages(input.pages, input.filter);
+  const dir = new Directory(Paths.cache, 'gallery');
+  if (dir.exists) dir.delete();
+  dir.create({ intermediates: true });
+  const safeName = input.title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Skan';
+
+  let album = await Album.get(ALBUM);
+  for (const [i, image] of images.entries()) {
+    // Fayl nomi galereyada ko'rinadi.
+    const named = new File(dir, images.length > 1 ? `${safeName} - ${i + 1}.jpg` : `${safeName}.jpg`);
+    await image.move(named);
+    const asset = await Asset.create(named.uri, album ?? undefined);
+    if (!album) album = await Album.create(ALBUM, [asset], true);
+  }
+  dir.delete();
+  return images.length;
 }

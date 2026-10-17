@@ -4,7 +4,7 @@ import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import PdfThumbnail from 'react-native-pdf-thumbnail';
 
-import { insertDocument, markDocumentDeleted, updateDocumentFile, type Document } from '@/db';
+import { insertDocument, markDocumentDeleted, uniqueTitle, updateDocumentFile, type Document } from '@/db';
 
 import { kickOcr } from './ocr';
 import { appFile, DOCS_DIR, ensureDir, THUMBS_DIR } from './paths';
@@ -58,7 +58,8 @@ export async function addPdfDocument(db: SQLiteDatabase, input: NewDocument) {
   try {
     await insertDocument(db, {
       id,
-      title: input.title,
+      // Bir xil nomli hujjatlar ro'yxatda adashtirmasligi uchun oxiriga (2), (3) qo'shiladi.
+      title: await uniqueTitle(db, input.title),
       folder_id: input.folderId ?? null,
       file_path: `${DOCS_DIR}/${id}.pdf`,
       thumb_path: thumbPath,
