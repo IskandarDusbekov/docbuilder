@@ -29,6 +29,8 @@ export default function HomeScreen() {
     const [d, f] = await Promise.all([listDocuments(db, { search: query, folderId }), listFolders(db)]);
     setDocs(d);
     setFolders(f);
+    // Tanlangan papka sozlamalarda o'chirilgan bo'lsa, "Hammasi"ga qaytamiz.
+    if (folderId && !f.some((x) => x.id === folderId)) setFolderId(null);
   }, [db, query, folderId]);
 
   // Boshqa ekrandan qaytganda ham ro'yxat yangilanadi.

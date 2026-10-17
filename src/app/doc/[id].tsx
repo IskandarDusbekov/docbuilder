@@ -1,18 +1,27 @@
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { FileWarning, FolderInput, Pencil, Share2, Trash2 } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import Pdf from 'react-native-pdf';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChoiceDialog, PromptDialog } from '@/components/dialog';
 import { IconButton } from '@/components/icon-button';
 import { Placeholder } from '@/components/placeholder';
-import { getDocument, setPageCount, type Document } from '@/db';
-import { appFile } from '@/files';
+import {
+  getDocument,
+  listFolders,
+  moveDocument,
+  renameDocument,
+  setPageCount,
+  type Document,
+  type Folder,
+} from '@/db';
+import { appFile, deleteDocument, shareDocument } from '@/files';
 import { Spacing, useColors } from '@/theme';
 
-const soon = () => Alert.alert('Tez orada', "Bu amal 5-bosqichda qo'shiladi.");
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export default function DocumentScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,18 +30,74 @@ export default function DocumentScreen() {
   const insets = useSafeAreaInsets();
   // undefined: yuklanmoqda, null: topilmadi.
   const [doc, setDoc] = useState<Document | null | undefined>(undefined);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [failed, setFailed] = useState(false);
+  const [dialog, setDialog] = useState<'rename' | 'move' | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const reload = useCallback(() => getDocument(db, id).then(setDoc), [db, id]);
 
   useEffect(() => {
-    getDocument(db, id).then(setDoc);
-  }, [db, id]);
+    reload();
+  }, [reload]);
 
   const onLoaded = (pages: number) => {
     // Import paytidagi taxminiy son noto'g'ri bo'lsa, ko'ruvchi bergan aniq son bilan almashtiramiz.
     if (doc && pages > 0 && pages !== doc.page_count) setPageCount(db, doc.id, pages);
   };
 
+  const share = async () => {
+    if (!doc) return;
+    setSharing(true);
+    try {
+      await shareDocument(doc);
+    } catch (e) {
+      Alert.alert("Ulashib bo'lmadi", errorText(e));
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const rename = async (title: string) => {
+    if (!doc) return;
+    setDialog(null);
+    await renameDocument(db, doc.id, title);
+    reload();
+  };
+
+  const openMove = async () => {
+    setFolders(await listFolders(db));
+    setDialog('move');
+  };
+
+  const move = async (folderId: string | null) => {
+    if (!doc) return;
+    setDialog(null);
+    await moveDocument(db, doc.id, folderId);
+    reload();
+  };
+
+  const confirmDelete = () => {
+    if (!doc) return;
+    Alert.alert("Hujjatni o'chirish", `"${doc.title}" butunlay o'chiriladi. Qaytarib bo'lmaydi.`, [
+      { text: 'Bekor qilish', style: 'cancel' },
+      {
+        text: "O'chirish",
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteDocument(db, doc);
+            router.back();
+          } catch (e) {
+            Alert.alert("O'chirib bo'lmadi", errorText(e));
+          }
+        },
+      },
+    ]);
+  };
+
   const pdf = doc ? appFile(doc.file_path) : null;
+  const ready = !!doc && !!pdf?.exists;
 
   return (
     <View style={styles.container}>
@@ -41,24 +106,52 @@ export default function DocumentScreen() {
       <View style={[styles.viewer, { backgroundColor: colors.surface }]}>
         {doc === undefined ? (
           <ActivityIndicator color={colors.text} style={styles.fill} />
-        ) : !pdf || !pdf.exists || failed ? (
-          <Placeholder icon={FileWarning} title="Hujjatni ochib bo'lmadi" hint="Fayl o'chirilgan yoki buzilgan" style={styles.fill} />
-        ) : (
+        ) : ready && pdf && !failed ? (
           <Pdf
             source={{ uri: pdf.uri }}
             style={styles.fill}
             onLoadComplete={onLoaded}
             onError={() => setFailed(true)}
           />
+        ) : (
+          <Placeholder icon={FileWarning} title="Hujjatni ochib bo'lmadi" hint="Fayl o'chirilgan yoki buzilgan" style={styles.fill} />
         )}
       </View>
 
       <View style={[styles.bar, { borderTopColor: colors.border, paddingBottom: insets.bottom + Spacing.sm }]}>
-        <IconButton icon={Share2} label="Ulashish" onPress={soon} />
-        <IconButton icon={Pencil} label="Nomi" accessibilityLabel="Nomini o'zgartirish" onPress={soon} />
-        <IconButton icon={FolderInput} label="Ko'chirish" accessibilityLabel="Papkaga ko'chirish" onPress={soon} />
-        <IconButton icon={Trash2} label="O'chirish" color="danger" onPress={soon} />
+        <IconButton icon={Share2} label="Ulashish" disabled={!ready || sharing} onPress={share} />
+        <IconButton
+          icon={Pencil}
+          label="Nomi"
+          accessibilityLabel="Nomini o'zgartirish"
+          disabled={!doc}
+          onPress={() => setDialog('rename')}
+        />
+        <IconButton
+          icon={FolderInput}
+          label="Ko'chirish"
+          accessibilityLabel="Papkaga ko'chirish"
+          disabled={!doc}
+          onPress={openMove}
+        />
+        <IconButton icon={Trash2} label="O'chirish" color="danger" disabled={!doc} onPress={confirmDelete} />
       </View>
+
+      <PromptDialog
+        visible={dialog === 'rename'}
+        title="Nomini o'zgartirish"
+        initialValue={doc?.title}
+        onSubmit={rename}
+        onClose={() => setDialog(null)}
+      />
+      <ChoiceDialog
+        visible={dialog === 'move'}
+        title="Papkaga ko'chirish"
+        options={[{ value: null, label: 'Papkasiz' }, ...folders.map((f) => ({ value: f.id, label: f.name }))]}
+        selected={doc?.folder_id ?? null}
+        onSelect={move}
+        onClose={() => setDialog(null)}
+      />
     </View>
   );
 }

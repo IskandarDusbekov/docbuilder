@@ -1,12 +1,13 @@
 import { useSQLiteContext } from 'expo-sqlite';
-import { ChevronRight, Folder, HardDrive, type LucideIcon } from 'lucide-react-native';
-import { useEffect, useState, type ReactNode } from 'react';
+import { ChevronRight, Folder as FolderIcon, FolderPlus, HardDrive, type LucideIcon } from 'lucide-react-native';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/app-text';
 import { Button } from '@/components/button';
+import { PromptDialog } from '@/components/dialog';
 import { Segmented } from '@/components/segmented';
-import { totalFileSize } from '@/db';
+import { createFolder, deleteFolder, listFolders, renameFolder, totalFileSize, type Folder } from '@/db';
 import { formatSize } from '@/files';
 import {
   getSchemePreference,
@@ -61,15 +62,54 @@ export default function SettingsScreen() {
   const db = useSQLiteContext();
   const [scheme, setScheme] = useState<SchemePreference>(getSchemePreference);
   const [used, setUsed] = useState<number | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  // null: oyna yopiq; folder yo'q bo'lsa yangi papka, bor bo'lsa nomini o'zgartirish.
+  const [prompt, setPrompt] = useState<{ folder?: Folder } | null>(null);
+
+  const loadFolders = useCallback(() => listFolders(db).then(setFolders), [db]);
 
   useEffect(() => {
     totalFileSize(db).then(setUsed);
-  }, [db]);
+    loadFolders();
+  }, [db, loadFolders]);
 
   const changeScheme = (value: SchemePreference) => {
     setScheme(value);
     setSchemePreference(value);
   };
+
+  const submitFolder = async (name: string) => {
+    try {
+      if (prompt?.folder) await renameFolder(db, prompt.folder.id, name);
+      else await createFolder(db, name);
+      setPrompt(null);
+      loadFolders();
+    } catch (e) {
+      Alert.alert('Saqlanmadi', e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const folderActions = (folder: Folder) =>
+    Alert.alert(folder.name, undefined, [
+      { text: "Nomini o'zgartirish", onPress: () => setPrompt({ folder }) },
+      {
+        text: "O'chirish",
+        style: 'destructive',
+        onPress: () =>
+          Alert.alert("Papkani o'chirish", "Ichidagi hujjatlar o'chmaydi, papkasiz bo'lib qoladi.", [
+            { text: 'Bekor qilish', style: 'cancel' },
+            {
+              text: "O'chirish",
+              style: 'destructive',
+              onPress: async () => {
+                await deleteFolder(db, folder.id);
+                loadFolders();
+              },
+            },
+          ]),
+      },
+      { text: 'Bekor qilish', style: 'cancel' },
+    ]);
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -78,7 +118,10 @@ export default function SettingsScreen() {
       </Section>
 
       <Section title="Papkalar">
-        <Row icon={Folder} label="Papkalarni boshqarish" onPress={soon(5)} />
+        {folders.map((f) => (
+          <Row key={f.id} icon={FolderIcon} label={f.name} onPress={() => folderActions(f)} />
+        ))}
+        <Button label="Yangi papka" icon={FolderPlus} variant="secondary" onPress={() => setPrompt({})} />
       </Section>
 
       <Section title="Zaxira nusxa">
@@ -92,6 +135,16 @@ export default function SettingsScreen() {
       <Section title="Xotira">
         <Row icon={HardDrive} label="Egallangan joy" value={used === null ? '…' : formatSize(used)} />
       </Section>
+
+      <PromptDialog
+        visible={prompt !== null}
+        title={prompt?.folder ? "Papka nomini o'zgartirish" : 'Yangi papka'}
+        initialValue={prompt?.folder?.name}
+        placeholder="Masalan: Ish"
+        submitLabel={prompt?.folder ? 'Saqlash' : 'Yaratish'}
+        onSubmit={submitFolder}
+        onClose={() => setPrompt(null)}
+      />
     </ScrollView>
   );
 }

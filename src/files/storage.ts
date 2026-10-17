@@ -1,9 +1,10 @@
 import { randomUUID } from 'expo-crypto';
 import { Directory, File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import PdfThumbnail from 'react-native-pdf-thumbnail';
 
-import { insertDocument } from '@/db';
+import { insertDocument, markDocumentDeleted, type Document } from '@/db';
 
 // Fayllar ilovaning shaxsiy papkasida: documents/ ichida PDF'lar, thumbs/ ichida kichik rasmlar.
 // Bazada nisbiy yo'l saqlanadi, shunda zaxiradan tiklanganda ham yo'llar buzilmaydi.
@@ -86,6 +87,26 @@ export async function addPdfDocument(db: SQLiteDatabase, input: NewDocument) {
     throw e;
   }
   return id;
+}
+
+export async function deleteDocument(db: SQLiteDatabase, doc: Document) {
+  await markDocumentDeleted(db, doc.id);
+  for (const rel of [doc.file_path, doc.thumb_path]) {
+    if (!rel) continue;
+    const file = appFile(rel);
+    if (file.exists) file.delete();
+  }
+}
+
+// Ichki fayl nomi UUID; Telegram va boshqa ilovalarda hujjat nomi bilan ko'rinishi uchun nusxa olib ulashamiz.
+export async function shareDocument(doc: Document) {
+  const safeName = doc.title.replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'Hujjat';
+  const dir = new Directory(Paths.cache, 'share');
+  if (dir.exists) dir.delete();
+  dir.create({ intermediates: true });
+  const copy = new File(dir, `${safeName}.pdf`);
+  await appFile(doc.file_path).copy(copy);
+  await Sharing.shareAsync(copy.uri, { mimeType: 'application/pdf', dialogTitle: doc.title, UTI: 'com.adobe.pdf' });
 }
 
 export function importPdf(db: SQLiteDatabase, picked: { uri: string; name: string }) {

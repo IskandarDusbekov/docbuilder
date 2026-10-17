@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 export type Document = {
@@ -78,6 +79,67 @@ export async function totalFileSize(db: SQLiteDatabase) {
   return row?.total ?? 0;
 }
 
+export async function renameDocument(db: SQLiteDatabase, id: string, title: string) {
+  await db.runAsync('UPDATE documents SET title = ?, updated_at = ? WHERE id = ?', title, new Date().toISOString(), id);
+}
+
+export async function moveDocument(db: SQLiteDatabase, id: string, folderId: string | null) {
+  await db.runAsync(
+    'UPDATE documents SET folder_id = ?, updated_at = ? WHERE id = ?',
+    folderId,
+    new Date().toISOString(),
+    id
+  );
+}
+
+// Qator "yumshoq" o'chiriladi: keyin sync serverga ham o'chirilganini yetkazadi. Fayllarni chaqiruvchi o'chiradi.
+export async function markDocumentDeleted(db: SQLiteDatabase, id: string) {
+  const now = new Date().toISOString();
+  await db.runAsync('UPDATE documents SET deleted_at = ?, updated_at = ? WHERE id = ?', now, now, id);
+}
+
 export function listFolders(db: SQLiteDatabase) {
   return db.getAllAsync<Folder>('SELECT * FROM folders WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE');
+}
+
+export class FolderExistsError extends Error {
+  constructor(name: string) {
+    super(`"${name}" nomli papka allaqachon bor`);
+  }
+}
+
+// Nomlar katta-kichik harfga qaramay takrorlanmaydi ("Ish" va "ish" bitta papka).
+async function assertFolderNameFree(db: SQLiteDatabase, name: string, exceptId?: string) {
+  const row = await db.getFirstAsync<{ id: string }>(
+    'SELECT id FROM folders WHERE deleted_at IS NULL AND lower(name) = lower(?) AND id != ?',
+    name,
+    exceptId ?? ''
+  );
+  if (row) throw new FolderExistsError(name);
+}
+
+export async function createFolder(db: SQLiteDatabase, name: string) {
+  await assertFolderNameFree(db, name);
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'INSERT INTO folders (id, name, created_at, updated_at, deleted_at) VALUES (?, ?, ?, ?, NULL)',
+    randomUUID(),
+    name,
+    now,
+    now
+  );
+}
+
+export async function renameFolder(db: SQLiteDatabase, id: string, name: string) {
+  await assertFolderNameFree(db, name, id);
+  await db.runAsync('UPDATE folders SET name = ?, updated_at = ? WHERE id = ?', name, new Date().toISOString(), id);
+}
+
+// Papka o'chsa, ichidagi hujjatlar o'chmaydi, "Papkasiz" bo'lib qoladi.
+export async function deleteFolder(db: SQLiteDatabase, id: string) {
+  const now = new Date().toISOString();
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('UPDATE documents SET folder_id = NULL, updated_at = ? WHERE folder_id = ?', now, id);
+    await db.runAsync('UPDATE folders SET deleted_at = ?, updated_at = ? WHERE id = ?', now, now, id);
+  });
 }
